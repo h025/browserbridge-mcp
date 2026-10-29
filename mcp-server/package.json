@@ -1,5 +1,5 @@
 {
-  "name": "browserbridge-mcp",
+  "name": "@h025/browserbridge-mcp",
   "version": "0.7.0",
   "description": "Let Claude Code and other MCP clients drive your local Chrome, no account sign-in needed (Chrome extension included). 让 Claude Code 等 MCP 客户端操作本机 Chrome，无需登录。",
   "keywords": [
@@ -44,5 +44,8 @@
     "@modelcontextprotocol/sdk": "^1.32.2",
     "esbuild": "^0.25.11",
     "ws": "^8.22.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

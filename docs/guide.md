@@ -50,10 +50,10 @@ MCP 客户端 ──stdio──> MCP 服务（Node，本机） ──WebSocket 1
 **1. 导出 Chrome 扩展**
 
 ```bash
-npx -y browserbridge-mcp extension
+npx -y @h025/browserbridge-mcp extension
 ```
 
-扩展会被复制到 `~/browser-bridge-extension`。想放到别处，在命令后加目录，例如 `npx -y browserbridge-mcp extension ~/tools/bb-extension`。
+扩展会被复制到 `~/browser-bridge-extension`。想放到别处，在命令后加目录，例如 `npx -y @h025/browserbridge-mcp extension ~/tools/bb-extension`。
 
 **2. 在 Chrome 中加载扩展**
 
@@ -68,7 +68,7 @@ npx -y browserbridge-mcp extension
 Claude Code：
 
 ```bash
-claude mcp add browser-bridge -s user -- npx -y browserbridge-mcp
+claude mcp add browser-bridge -s user -- npx -y @h025/browserbridge-mcp
 ```
 
 其他客户端见[第四节](#四在各客户端中配置)。
@@ -106,7 +106,7 @@ claude mcp add browser-bridge -s user -- node "$(pwd)/src/cli.js"
 
 MCP 服务是标准的 stdio 服务，下面两种启动方式任选：
 
-- **npm 方式**：命令 `npx`，参数 `-y browserbridge-mcp`
+- **npm 方式**：命令 `npx`，参数 `-y @h025/browserbridge-mcp`
 - **安装包方式**：命令 `node`，参数是 `browser-bridge-mcp.mjs` 的绝对路径
 
 > **桌面客户端找不到 node / npx？** 桌面应用不会读取终端里的 PATH。用 nvm、fnm 等版本管理工具时尤其常见。解决办法：`command` 写绝对路径（终端运行 `which npx` 或 `which node` 查看），并在配置里加上 `"env": { "PATH": "<node 所在目录>:/usr/bin:/bin" }`。版本管理工具给出的临时路径请换成稳定路径，例如 fnm 的 `~/.local/share/fnm/aliases/default/bin`、nvm 的 `~/.nvm/versions/node/<版本>/bin`。JSON 里不能用 `~`，要写完整路径。
@@ -114,7 +114,7 @@ MCP 服务是标准的 stdio 服务，下面两种启动方式任选：
 ### Claude Code
 
 ```bash
-claude mcp add browser-bridge -s user -- npx -y browserbridge-mcp
+claude mcp add browser-bridge -s user -- npx -y @h025/browserbridge-mcp
 ```
 
 `-s user` 表示所有项目都能用。查看状态：`claude mcp list`；在会话里输入 `/mcp` 可以查看或重连。
@@ -128,7 +128,7 @@ claude mcp add browser-bridge -s user -- npx -y browserbridge-mcp
   "mcpServers": {
     "browser-bridge": {
       "command": "npx",
-      "args": ["-y", "browserbridge-mcp"]
+      "args": ["-y", "@h025/browserbridge-mcp"]
     }
   }
 }
@@ -141,7 +141,7 @@ claude mcp add browser-bridge -s user -- npx -y browserbridge-mcp
 ```toml
 [mcp_servers.browser-bridge]
 command = "npx"
-args = ["-y", "browserbridge-mcp"]
+args = ["-y", "@h025/browserbridge-mcp"]
 ```
 
 ### Cursor、Windsurf、Cline、Cherry Studio、Gemini CLI 等
@@ -165,7 +165,7 @@ args = ["-y", "browserbridge-mcp"]
     "browser-bridge": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "browserbridge-mcp"]
+      "args": ["-y", "@h025/browserbridge-mcp"]
     }
   }
 }
@@ -314,7 +314,7 @@ agent 会自己选择工具，一般不需要你指定。了解这些有助于�
 在 MCP 配置里设置。Claude Code 用 `-e` 传入，例如：
 
 ```bash
-claude mcp add browser-bridge -s user -e BROWSER_BRIDGE_PORT=18766 -- npx -y browserbridge-mcp
+claude mcp add browser-bridge -s user -e BROWSER_BRIDGE_PORT=18766 -- npx -y @h025/browserbridge-mcp
 ```
 
 JSON 配置里写在 `"env": { ... }` 中。
@@ -368,8 +368,8 @@ GIF 上会标出点击位置、拖拽路径、动作说明和进度条，这些�
 
 **npm 方式**
 
-1. 配置里写 `browserbridge-mcp` 时，npx 可能沿用缓存里的旧版本；想确保用最新版，写成 `browserbridge-mcp@latest`，想固定版本就写成 `browserbridge-mcp@0.7.0`
-2. 重新导出扩展：`npx -y browserbridge-mcp@latest extension`（会覆盖原目录）
+1. 配置里写 `@h025/browserbridge-mcp` 时，npx 可能沿用缓存里的旧版本；想确保用最新版，写成 `@h025/browserbridge-mcp@latest`，想固定版本就写成 `@h025/browserbridge-mcp@0.7.0`
+2. 重新导出扩展：`npx -y @h025/browserbridge-mcp@latest extension`（会覆盖原目录）
 3. 在 `chrome://extensions` 中点 Browser Bridge 的刷新按钮
 4. 重启客户端
 

@@ -16,11 +16,11 @@ Claude Code ──stdio(MCP)──> mcp-server（Node，本机）──WebSocket
 
 ## 安装
 
-**方式一：npm（发布后）**
+**方式一：npm**
 
 ```bash
-npx -y browserbridge-mcp extension          # 导出 Chrome 扩展到 ~/browser-bridge-extension
-claude mcp add browser-bridge -s user -- npx -y browserbridge-mcp
+npx -y @h025/browserbridge-mcp extension          # 导出 Chrome 扩展到 ~/browser-bridge-extension
+claude mcp add browser-bridge -s user -- npx -y @h025/browserbridge-mcp
 ```
 
 然后在 `chrome://extensions` 中打开「开发者模式」，「加载已解压的扩展程序」选择导出的目录。其他 MCP 客户端的配置见 `mcp-server/README.md`。

@@ -19,8 +19,8 @@ MCP client ──stdio(MCP)──> mcp-server (Node, local) ──WebSocket 127.
 **npm**
 
 ```bash
-npx -y browserbridge-mcp extension          # copy the Chrome extension to ~/browser-bridge-extension
-claude mcp add browser-bridge -s user -- npx -y browserbridge-mcp
+npx -y @h025/browserbridge-mcp extension          # copy the Chrome extension to ~/browser-bridge-extension
+claude mcp add browser-bridge -s user -- npx -y @h025/browserbridge-mcp
 ```
 
 Then open `chrome://extensions`, turn on "Developer mode", click "Load unpacked" and choose the exported folder.
@@ -30,7 +30,7 @@ Other MCP clients (Claude Desktop, Cursor, Windsurf, Cline, Gemini CLI, ...) add
 ```json
 {
   "mcpServers": {
-    "browser-bridge": { "command": "npx", "args": ["-y", "browserbridge-mcp"] }
+    "browser-bridge": { "command": "npx", "args": ["-y", "@h025/browserbridge-mcp"] }
   }
 }
 ```
@@ -40,7 +40,7 @@ Codex (`~/.codex/config.toml`):
 ```toml
 [mcp_servers.browser-bridge]
 command = "npx"
-args = ["-y", "browserbridge-mcp"]
+args = ["-y", "@h025/browserbridge-mcp"]
 ```
 
 Desktop apps do not see your shell's PATH. If they cannot find `npx` or `node` (common with nvm or fnm), use the absolute path of `npx` as `command` and add `"env": { "PATH": "<node dir>:/usr/bin:/bin" }`.

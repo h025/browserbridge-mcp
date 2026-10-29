@@ -59,6 +59,8 @@ jobs:
           3. 打开 \`chrome://extensions\`，打开右上角的「开发者模式」，点「加载已解压的扩展程序」，选择解压目录里的 \`extension\` 文件夹
           4. 重启 Claude Code 等客户端
 
+          也可以用 npm 安装：\`npx -y @h025/browserbridge-mcp extension\` 导出扩展，客户端里用 \`npx -y @h025/browserbridge-mcp\` 启动服务。
+
           升级时用新文件替换原目录，再在 \`chrome://extensions\` 里点扩展的刷新按钮。详见[使用指南](https://github.com/$GITHUB_REPOSITORY/blob/main/docs/guide.md)。
 
           构建自提交 ${GITHUB_SHA::7}：$(git log -1 --format=%s)

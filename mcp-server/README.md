@@ -1,4 +1,4 @@
-# browserbridge-mcp
+# @h025/browserbridge-mcp
 
 中文 | [English](https://github.com/h025/browserbridge-mcp/blob/main/README.en.md)
 
@@ -7,7 +7,7 @@
 由两部分组成，都在这个包里：
 
 - **MCP 服务**：由 MCP 客户端启动，通过 stdio 通信
-- **Chrome 扩展**：在浏览器里执行操作，用 `browserbridge-mcp extension` 导出后在 Chrome 中加载
+- **Chrome 扩展**：在浏览器里执行操作，用 `npx -y @h025/browserbridge-mcp extension` 导出后在 Chrome 中加载
 
 需要 Node.js 18 或更高版本。安装、各客户端配置、使用方法和常见问题的完整说明见 **[使用指南](https://github.com/h025/browserbridge-mcp/blob/main/docs/guide.md)**。
 
@@ -16,7 +16,7 @@
 **1. 导出并加载 Chrome 扩展**
 
 ```bash
-npx -y browserbridge-mcp extension
+npx -y @h025/browserbridge-mcp extension
 ```
 
 扩展会被复制到 `~/browser-bridge-extension`（也可以在命令后指定目录）。然后打开 `chrome://extensions`，打开右上角的「开发者模式」，点「加载已解压的扩展程序」，选择这个目录。之后不要删除该目录。
@@ -26,7 +26,7 @@ npx -y browserbridge-mcp extension
 Claude Code：
 
 ```bash
-claude mcp add browser-bridge -s user -- npx -y browserbridge-mcp
+claude mcp add browser-bridge -s user -- npx -y @h025/browserbridge-mcp
 ```
 
 其他客户端（Claude 桌面版、Cursor、Windsurf、Cline、Gemini CLI 等）在 MCP 配置的 `mcpServers` 中加入：
@@ -36,7 +36,7 @@ claude mcp add browser-bridge -s user -- npx -y browserbridge-mcp
   "mcpServers": {
     "browser-bridge": {
       "command": "npx",
-      "args": ["-y", "browserbridge-mcp"]
+      "args": ["-y", "@h025/browserbridge-mcp"]
     }
   }
 }
@@ -47,7 +47,7 @@ Codex（`~/.codex/config.toml`）：
 ```toml
 [mcp_servers.browser-bridge]
 command = "npx"
-args = ["-y", "browserbridge-mcp"]
+args = ["-y", "@h025/browserbridge-mcp"]
 ```
 
 **3. 重启客户端**，点 Chrome 里的扩展图标，看到「已连接 MCP 服务」即可使用。
@@ -56,7 +56,7 @@ args = ["-y", "browserbridge-mcp"]
 
 ## 升级
 
-npx 可能沿用缓存里的旧版本，想确保用最新版就写成 `browserbridge-mcp@latest`，想固定版本写成 `browserbridge-mcp@0.7.0`。扩展需要重新导出：运行 `npx -y browserbridge-mcp@latest extension`，然后在 `chrome://extensions` 中点该扩展的刷新按钮。扩展和服务的版本不一致时，部分新工具可能不可用。
+npx 可能沿用缓存里的旧版本，想确保用最新版就写成 `@h025/browserbridge-mcp@latest`，想固定版本写成 `@h025/browserbridge-mcp@0.7.0`。扩展需要重新导出：运行 `npx -y @h025/browserbridge-mcp@latest extension`，然后在 `chrome://extensions` 中点该扩展的刷新按钮。扩展和服务的版本不一致时，部分新工具可能不可用。
 
 ## 提供的工具
 

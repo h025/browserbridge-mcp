@@ -73,7 +73,7 @@ const HELP = say(`browserbridge-mcp v${VERSION}
   browserbridge-mcp --version          显示版本
 
 在 Claude Code 中注册：
-  claude mcp add browser-bridge -s user -- npx -y browserbridge-mcp`, `browserbridge-mcp v${VERSION}
+  claude mcp add browser-bridge -s user -- npx -y @h025/browserbridge-mcp`, `browserbridge-mcp v${VERSION}
 Lets Claude Code and other MCP clients drive your local Chrome (with the Browser Bridge extension)
 
 Usage:
@@ -82,7 +82,7 @@ Usage:
   browserbridge-mcp --version          print the version
 
 Register with Claude Code:
-  claude mcp add browser-bridge -s user -- npx -y browserbridge-mcp`);
+  claude mcp add browser-bridge -s user -- npx -y @h025/browserbridge-mcp`);
 
 if (command === 'extension') {
   exportExtension(arg);
