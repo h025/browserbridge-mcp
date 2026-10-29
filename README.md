@@ -8,6 +8,8 @@
 Claude Code ──stdio(MCP)──> mcp-server（Node，本机）──WebSocket 127.0.0.1:18765──> Chrome 扩展 ──CDP/scripting──> 网页
 ```
 
+**📖 安装、配置、使用和常见问题的完整说明见 [使用指南](docs/guide.md)。**
+
 - 不连接任何云端服务，扩展只与本机 `127.0.0.1` 通信
 - 使用你浏览器里现有的登录状态
 - 多个 agent 可同时使用，**每个 agent 有自己的标签组，互不干扰**：第一个 MCP 进程做 hub，其余自动作为 peer 经 hub 转发；hub 退出后自动接任

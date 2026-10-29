@@ -9,7 +9,7 @@
 - **MCP 服务**：由 MCP 客户端启动，通过 stdio 通信
 - **Chrome 扩展**：在浏览器里执行操作，用 `browserbridge-mcp extension` 导出后在 Chrome 中加载
 
-需要 Node.js 18 或更高版本。
+需要 Node.js 18 或更高版本。安装、各客户端配置、使用方法和常见问题的完整说明见 **[使用指南](https://github.com/h025/browserbridge-mcp/blob/main/docs/guide.md)**。
 
 ## 快速开始
 
@@ -56,7 +56,7 @@ args = ["-y", "browserbridge-mcp"]
 
 ## 升级
 
-`npx -y browserbridge-mcp` 会使用最新版本；如需固定版本，写成 `browserbridge-mcp@0.7.0`。扩展需要重新导出：再运行一次 `npx -y browserbridge-mcp extension`，然后在 `chrome://extensions` 中点该扩展的刷新按钮。扩展和服务的版本不一致时，部分新工具可能不可用。
+npx 可能沿用缓存里的旧版本，想确保用最新版就写成 `browserbridge-mcp@latest`，想固定版本写成 `browserbridge-mcp@0.7.0`。扩展需要重新导出：运行 `npx -y browserbridge-mcp@latest extension`，然后在 `chrome://extensions` 中点该扩展的刷新按钮。扩展和服务的版本不一致时，部分新工具可能不可用。
 
 ## 提供的工具
 

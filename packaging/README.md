@@ -1,6 +1,6 @@
 # Browser Bridge for Claude Code 使用说明
 
-让 Claude Code 直接操作你本机的 Chrome，不需要登录任何账号。由两部分组成：
+让 Claude Code 直接操作你本机的 Chrome，不需要登录任何账号。完整说明见[使用指南](https://github.com/h025/browserbridge-mcp/blob/main/docs/guide.md)。由两部分组成：
 
 - `extension/`：Chrome 扩展，负责在浏览器里执行操作
 - `mcp/browser-bridge-mcp.mjs`：本机 MCP 服务，负责和 Claude Code 通信

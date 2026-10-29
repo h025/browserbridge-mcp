@@ -8,6 +8,8 @@ Let Claude Code and other MCP clients drive your local Chrome, **with no account
 MCP client ──stdio(MCP)──> mcp-server (Node, local) ──WebSocket 127.0.0.1:18765──> Chrome extension ──CDP/scripting──> web page
 ```
 
+**📖 A detailed usage guide (in Chinese) is in [docs/guide.md](docs/guide.md).**
+
 - No cloud service; the extension only talks to `127.0.0.1`
 - Uses the logins already in your browser
 - Several agents can use it at once, **each with its own tab group, without getting in each other's way**: the first MCP process acts as the hub, the others relay through it, and a new hub takes over when it exits
