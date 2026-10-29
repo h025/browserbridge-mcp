@@ -45,15 +45,20 @@
         /* 外层光晕：比屏幕大一圈的彩色光环整体模糊，一半在屏幕外，屏幕内是柔和、圆角的宽光晕 */
         .aura { position: absolute; inset: -48px; filter: blur(26px); animation: bb-breathe-aura 3.2s ease-in-out infinite; }
         .aura .ring { --t: 100px; }
-        /* 贴边亮色光带：细光环轻微模糊，勾出清楚的边缘 */
+        /* 贴边光带：两道亮色光束沿四边追逐，转得比外层快，一眼能看出在绕圈 */
         .edge { position: absolute; inset: 0; filter: blur(2px); animation: bb-breathe-edge 3.2s ease-in-out infinite; }
-        .edge .ring { --t: 5px; }
+        .edge .ring { --t: 6px; }
+        .edge .ring::before { animation-duration: 3.5s;
+          background: conic-gradient(transparent 0deg, #3B82F6 50deg, #A78BFA 95deg, transparent 140deg, transparent 180deg,
+            #EC4899 230deg, #FBBF24 275deg, transparent 320deg); }
         /* 光环：只保留四周宽 --t 的一圈，里面是旋转的彩色圆盘（比对角线还大，转起来四边始终被覆盖） */
         .ring { position: absolute; inset: 0; padding: var(--t); overflow: hidden;
           -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+        /* 外层的颜色有明有暗，亮色块沿四周移动，旋转更容易看出来 */
         .ring::before { content: ""; position: absolute; top: 50%; left: 50%; width: 170vmax; height: 170vmax;
-          transform: translate(-50%, -50%); animation: bb-spin 10s linear infinite;
-          background: conic-gradient(#3B82F6, #8B5CF6, #EC4899, #F59E0B, #22D3EE, #3B82F6); }
+          transform: translate(-50%, -50%); animation: bb-spin 6s linear infinite;
+          background: conic-gradient(#3B82F6, #8B5CF6 18%, rgba(139,92,246,.35) 30%, #EC4899 44%, #F59E0B 58%,
+            rgba(245,158,11,.35) 70%, #22D3EE 84%, #3B82F6); }
         @media (prefers-reduced-motion: reduce) { .aura, .edge, .ring::before { animation: none; } }
         .cursor { position: fixed; top: 0; left: 0; pointer-events: none; z-index: 2147483646; will-change: transform;
           transition: transform 180ms cubic-bezier(.2, 0, 0, 1); filter: drop-shadow(0 1px 3px rgba(139,92,246,.8)); }

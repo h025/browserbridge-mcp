@@ -5,9 +5,9 @@
 // 组名是「emoji 客户端 · 任务名」，例如「✈️ Claude Code · 查机票」：任务名和 emoji 由 agent 通过
 // tabs_context_mcp 的 taskName 给出；正在操作时 emoji 换成 ⌛，空闲后换回来。
 //
-// 会话记录 { id, client, folder, cwd, groupId, task, emoji, title, color } 存在 chrome.storage.session，
-// Service Worker 重启后仍在（title 是不含 emoji 的组名）。agent 退出后标签组保留；同一客户端在同一目录
-// 重新启动（例如 /mcp 重连）时接回原来的组。
+// 会话记录 { id, client, folder, cwd, groupId, task, emoji, title, color } 存在 chrome.storage.local，
+// Service Worker 重启、扩展刷新或升级后仍在（title 是不含 emoji 的组名）。agent 退出后标签组保留；
+// 同一客户端在同一目录重新启动（例如 /mcp 重连）时接回原来的组。
 import { hostnameOf, sleep, ToolError } from './cdp.js';
 
 // 旧版 MCP 服务（0.6.0 及以前）的请求不带会话 ID，归入这个默认会话
@@ -34,13 +34,22 @@ const live = new Set(); // 当前连着的会话；扩展与 MCP 服务断开时
 const registering = new Map(); // 会话 ID -> 正在进行的登记（接回旧标签组等），请求要等它完成
 let sessionsPromise = null; // 会话记录的内存副本，修改后写回 storage
 
+// 读取时只保留标签组还在、且组名对得上的记录：浏览器重启后组 ID 会重新分配，
+// 旧记录里的 ID 可能碰巧落到别的组上，用组名核对一下
 function sessions() {
-  sessionsPromise ||= chrome.storage.session.get(SESSIONS_KEY).then((r) => r[SESSIONS_KEY] || {});
+  sessionsPromise ||= (async () => {
+    const { [SESSIONS_KEY]: all = {} } = await chrome.storage.local.get(SESSIONS_KEY);
+    for (const [id, rec] of Object.entries(all)) {
+      const group = rec.groupId == null ? null : await chrome.tabGroups.get(rec.groupId).catch(() => null);
+      if (!group || (group.title || '').replace(/^\S+ /, '') !== rec.title) delete all[id];
+    }
+    return all;
+  })();
   return sessionsPromise;
 }
 
 async function save() {
-  await chrome.storage.session.set({ [SESSIONS_KEY]: await sessions() });
+  await chrome.storage.local.set({ [SESSIONS_KEY]: await sessions() });
 }
 
 async function groupExists(groupId) {

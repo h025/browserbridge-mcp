@@ -1,6 +1,6 @@
 // 多个 agent 同时使用：每个会话有自己的标签组，互不干扰；
 // agent 退出后组保留，同一客户端在同一目录重启时接回原来的组；hub 换人后照常工作
-import { EXT_ID, openPage, setup, sleep } from './harness.mjs';
+import { browserSession, EXT_ID, openPage, setup, sleep } from './harness.mjs';
 
 const t = await setup();
 const { callWith, expect } = t;
@@ -37,6 +37,19 @@ try {
   expect(named?.title === '⌛ e2e · 查机票', `组名为 emoji + 客户端 + 任务名，正在操作时 emoji 换成 ⌛（${named?.title}）`);
   const listed = await ext.evaluate(`chrome.runtime.sendMessage({ type: 'sessions' }).then((r) => r.sessions.map((s) => s.title).join(' / '))`);
   expect(listed.includes('✈️ e2e · 查机票'), `弹窗里显示任务的 emoji（${listed}）`);
+
+  // 扩展刷新（升级时也一样）会清空 chrome.storage.session 并重启后台脚本：各 agent 仍认得自己的组，组名不变。
+  // 无头测试浏览器里用命令行加载的扩展刷新后不会重新加载，这里直接清空 session 存储再重启后台脚本来模拟
+  await ext.evaluate('chrome.storage.session.clear().then(() => true)');
+  const browser = await browserSession();
+  const { targetInfos } = await browser.send('Target.getTargets');
+  const sw = targetInfos.find((x) => x.type === 'service_worker' && x.url.startsWith(`chrome-extension://${EXT_ID}/`));
+  await browser.send('Target.closeTarget', { targetId: sw.targetId });
+  browser.close();
+  await sleep(8000);
+  const [ra, rb] = [await context(a), await context(b)];
+  expect(ra.tabGroupId === ca.tabGroupId && rb.tabGroupId === cb.tabGroupId, '扩展刷新后各 agent 仍使用自己的标签组');
+  expect(/^(✈️|⌛) e2e · 查机票$/.test((await groupInfo(ca.tabGroupId))?.title), '扩展刷新后组名不变');
 
   // B 退出：组保留；同一客户端在同一目录重启后接回原来的组
   await b.close();
