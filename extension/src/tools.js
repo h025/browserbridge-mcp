@@ -17,6 +17,9 @@ const JS_OUTPUT_LIMIT = 51_200;
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const SCRIPT_TIMEOUT_MS = 15_000;
 const CANDIDATES_MAX_CHARS = 8_000;
+// 候选元素列表里的链接地址只保留开头，几百个字符的地址既占篇幅又没用
+const HREF_KEEP = 60;
+const shortenHrefs = (text) => text.replace(/href="([^"]*)"/g, (all, url) => (url.length > HREF_KEEP ? `href="${url.slice(0, HREF_KEEP)}…"` : all));
 
 const invalid = (message) => new ToolError('input_invalid', message);
 
@@ -206,23 +209,30 @@ const TOOLS = {
     return { output: `${r.pageContent}\n\nViewport: ${r.viewport.width}x${r.viewport.height}` };
   },
 
-  // 按文字做关键词匹配；匹配不上时把视口里可交互的元素交给调用方 agent，由它自己判断（不依赖任何外部 AI 接口）
+  // 按文字和元素类型做关键词匹配；匹配不上，或匹配到的都不能点击、输入时，把视口里可交互的元素交给调用方 agent，
+  // 由它自己判断（不依赖任何外部 AI 接口）
   async find({ tabId, query }, ctx) {
     if (typeof query !== 'string' || !query.trim()) throw invalid('Query parameter is required');
     await useTab(tabId, ctx);
     const { total, items } = await agent(tabId, 'find', { query, limit: 20 });
+    const candidates = async () => shortenHrefs((await agent(tabId, 'accessibilityTree', { filter: 'interactive', maxChars: CANDIDATES_MAX_CHARS })).pageContent);
     if (!items.length) {
-      const { pageContent } = await agent(tabId, 'accessibilityTree', { filter: 'interactive', maxChars: CANDIDATES_MAX_CHARS });
-      if (!pageContent.trim()) {
+      const list = await candidates();
+      if (!list.trim()) {
         throw new ToolError('find_no_match', `No elements matching "${query}" found. Try different keywords, or use read_page to inspect the page.`);
       }
       return {
-        output: `No element text matched "${query}". These are the interactive elements currently in view; pick the one that fits the description yourself (refs work with the other tools):\n\n${pageContent}`,
+        output: `No element text matched "${query}". These are the interactive elements currently in view; pick the one that fits the description yourself (refs work with the other tools):\n\n${list}`,
       };
     }
     const more = total > items.length ? ` (showing first ${items.length}, use a more specific query to narrow results)` : '';
     const lines = items.map((m) => `- ${m.ref}: ${m.role}${m.name ? ` "${m.name.replace(/\s+/g, ' ').slice(0, 100)}"` : ''}${m.type ? ` (${m.type})` : ''}${m.hidden ? ' [not visible]' : ''}`);
-    return { output: `Found ${total} matching element${total === 1 ? '' : 's'}${more}\n\n${lines.join('\n')}` };
+    let output = `Found ${total} matching element${total === 1 ? '' : 's'}${more}\n\n${lines.join('\n')}`;
+    if (!items.some((m) => m.interactive)) {
+      const list = await candidates();
+      if (list.trim()) output += `\n\nNone of these can be clicked or typed into. Interactive elements currently in view, if you need one of them instead:\n\n${list}`;
+    }
+    return { output };
   },
 
   async form_input({ tabId, ref, value }, ctx) {

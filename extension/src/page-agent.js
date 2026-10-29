@@ -251,10 +251,33 @@
   }
 
   // 本地关键词匹配（匹配不上时 tools.js 会把可交互元素交给调用方 agent 自己挑）
+  // 描述里常见的元素类型词：命中时按元素类型匹配，其余文字再按内容匹配（例如“提交按钮” = 文字含“提交”的按钮）
+  const ROLE_WORDS = [
+    [/搜索框|搜索栏|搜索输入框|search ?(?:box|bar|field|input)/, ['searchbox', 'textbox']],
+    [/输入框|文本框|输入栏|文本输入|编辑框|text ?(?:box|field|input)|input ?(?:box|field)/, ['textbox', 'searchbox', 'combobox']],
+    [/下拉框|下拉菜单|下拉列表|选择框|dropdown|select ?box/, ['combobox', 'listbox']],
+    [/复选框|勾选框|checkbox/, ['checkbox']],
+    [/单选框|单选按钮|radio/, ['radio']],
+    [/按钮|button/, ['button']],
+    [/链接|超链接|link/, ['link']],
+    [/图片|图像|image|picture/, ['img']],
+    [/选项卡|标签页|\btab\b/, ['tab']],
+    [/开关|switch|toggle/, ['switch', 'checkbox']],
+    [/滑块|slider/, ['slider']],
+  ];
+
   function find({ query, limit = 20 }) {
     const q = String(query || '').toLowerCase().trim();
     if (!q) throw new AgentError('input_invalid', 'Query parameter is required');
-    const tokens = q.split(/\s+/);
+    const wantedRoles = new Set();
+    let rest = q;
+    for (const [re, roles] of ROLE_WORDS) {
+      if (!re.test(rest)) continue;
+      roles.forEach((r) => wantedRoles.add(r));
+      rest = rest.replace(re, ' ');
+    }
+    rest = rest.replace(/[的个那这一]+$|^[那这一个的]+/g, '').trim();
+    const tokens = rest ? rest.split(/\s+/).filter(Boolean) : [];
     const matches = [];
     const visit = (root) => {
       for (const el of root.querySelectorAll('*')) {
@@ -271,15 +294,19 @@
         ].filter(Boolean).join(' ').toLowerCase();
         let score = 0;
         for (const t of tokens) if (fields.includes(t)) score += 1;
+        const roleHit = wantedRoles.has(role);
+        // 只写了类型（如“搜索框”）时按类型找；类型和文字都写了时，类型对上加分，只对上类型的排在后面
+        if (roleHit) score += tokens.length ? (score ? 2 : 0.5) : 1;
         if (!score) continue;
         const lowerName = name.toLowerCase();
-        if (lowerName === q) score += 3;
-        else if (lowerName.includes(q)) score += 2;
+        const text = (rest || q).trim();
+        if (text && lowerName === text) score += 3;
+        else if (text && lowerName.includes(text)) score += 2;
         if (interactive) score += 1;
         const visible = isVisible(el);
         if (visible) score += 0.5;
         if (visible && inViewport(el)) score += 0.25;
-        matches.push({ el, role, name, score, visible });
+        matches.push({ el, role, name, score, visible, interactive });
       }
     };
     visit(document);
@@ -298,6 +325,7 @@
         name: m.name,
         type: m.el.getAttribute('type') || '',
         hidden: !m.visible,
+        interactive: m.interactive,
       })),
     };
   }

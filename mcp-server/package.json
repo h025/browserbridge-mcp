@@ -1,6 +1,6 @@
 {
   "name": "@h025/browserbridge-mcp",
-  "version": "0.7.6",
+  "version": "0.7.7",
   "description": "Let Claude Code and other MCP clients drive your local Chrome, no account sign-in needed (Chrome extension included). 让 Claude Code 等 MCP 客户端操作本机 Chrome，无需登录。",
   "keywords": [
     "mcp",

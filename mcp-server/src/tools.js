@@ -185,7 +185,7 @@ export const TOOLS = [
   {
     name: 'find',
     description:
-      `Find elements on the page using natural language. Can search for elements by their purpose (e.g., "search bar", "login button") or by text content (e.g., "organic mango product"). Returns up to 20 matching elements with references that can be used with other tools. If more than 20 matches exist, you'll be notified to use a more specific query. Matching is done on visible text, accessible name, placeholder, title, id and name attributes; if no text matches, the interactive elements currently in view are returned instead so you can pick the right one yourself.` +
+      `Find elements on the page using natural language. Can search for elements by their purpose (e.g., "search bar", "login button") or by text content (e.g., "organic mango product"). Returns up to 20 matching elements with references that can be used with other tools. If more than 20 matches exist, you'll be notified to use a more specific query. Matching is done on visible text, accessible name, placeholder, title, id and name attributes, and element-type words in the query (button, link, search box, input box, dropdown, checkbox, image, also in Chinese) match the element type. If nothing matches, or none of the matches can be clicked or typed into, the interactive elements currently in view are included so you can pick the right one yourself.` +
       NO_TAB,
     inputSchema: {
       type: 'object',

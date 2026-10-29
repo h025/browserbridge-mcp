@@ -14,6 +14,11 @@ try {
   expect(/提交表单/.test((await call('find', { tabId, query: '提交' })).t), 'find：按文字匹配到按钮');
   const cand = (await call('find', { tabId, query: 'unicorn widget' })).t;
   expect(/No element text matched/.test(cand) && /button "提交表单"/.test(cand), 'find：文字匹配不上时，把视口里的可交互元素交给 agent 自己挑');
+  expect(!/href="[^"]{62,}"/.test(cand) && /长地址链接" \[ref_\d+\] href="[^"]{60}…"/.test(cand), 'find：候选列表里的长链接地址被截短');
+  expect(/^Found \d+ matching element[\s\S]*?- ref_\d+: textbox/.test((await call('find', { tabId, query: '输入框' })).t), 'find：只写类型词（输入框）时按元素类型找');
+  expect(/^Found \d+ matching element[^\n]*\n\n- ref_\d+: button "提交表单"/.test((await call('find', { tabId, query: '提交按钮' })).t), 'find：类型词加文字（提交按钮）时，文字和类型都对上的排第一');
+  const heading = (await call('find', { tabId, query: '测试表单' })).t;
+  expect(/heading "测试表单"/.test(heading) && /None of these can be clicked/.test(heading) && /button "提交表单"/.test(heading), 'find：匹配到的都不能点击时，附上可交互的候选元素');
   expect(/link "样式链接"/.test(f) && !/color/.test(f), 'find：结果同样不含 CSS');
 
   // 2. 控制台/网络记录在第一次读取时才开启

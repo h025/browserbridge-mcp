@@ -87,7 +87,7 @@ Highlights:
 
 Other notes:
 
-- `find` matches elements by their text; when nothing matches, the interactive elements in view are handed to the agent to pick from.
+- `find` matches elements by their text and by element-type words (button, link, input box, ...); when nothing matches, or none of the matches can be clicked or typed into, the interactive elements in view are handed to the agent to pick from.
 - No account and no site-permission prompts.
 - `gif_creator` with `download: true` writes the GIF to disk through the MCP server and returns the path.
 

@@ -76,7 +76,7 @@ claude mcp add browser-bridge -s user -- node "$(pwd)/src/cli.js"
 
 其他说明：
 
-- `find`：按文字做关键词匹配，匹配不上时把屏幕上的可交互元素交给 agent 自己挑。
+- `find`：按文字和元素类型（按钮、链接、输入框等）匹配；匹配不上，或找到的都不能点击、输入时，把屏幕上的可交互元素交给 agent 自己挑。
 - 不需要账号，也没有网站权限弹窗。
 - `gif_creator` 的 `download: true` 由 MCP 服务把 GIF 写到本地磁盘并返回路径。
 - 对话框处理：Claude 执行操作期间页面弹出的 alert 自动确认、confirm/prompt 自动取消（否则页面会被阻塞），并在结果中提示；Claude 空闲时出现的对话框（可能是你自己的操作）留给你处理，Claude 下次操作该标签页时若仍未关闭才自动处理。
