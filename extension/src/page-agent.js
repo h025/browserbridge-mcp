@@ -93,6 +93,8 @@
   }
 
   function labelText(el) {
+    // 只有输入框、按钮等可加标签的元素才会有 labels；其他元素不用去整页查找 label[for]，大页面上这一步很慢
+    if (!el.labels?.length) return '';
     if (el.id) {
       try {
         const label = document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
@@ -102,8 +104,7 @@
         // 非法 id
       }
     }
-    const wrapping = el.labels?.[0];
-    return wrapping ? textOf(wrapping) : '';
+    return textOf(el.labels[0]);
   }
 
   function nameOf(el) {
@@ -152,9 +153,21 @@
     return rect.width > 0 && rect.height > 0;
   }
 
+  // 元素根本没有显示出来（自身或祖先 display:none、visibility:hidden，例如收起的菜单、折叠区域里的链接）
+  // 与 isVisible 不同：透明（opacity:0）或尺寸为 0 但仍在页面上的元素不算，它们往往照样能点
+  function isRendered(el) {
+    return el.checkVisibility?.({ visibilityProperty: true }) ?? true;
+  }
+
   function inViewport(el) {
     const r = el.getBoundingClientRect();
     return r.top < innerHeight && r.bottom > 0 && r.left < innerWidth && r.right > 0;
+  }
+
+  // 不显示、也不能操作的元素：脚本、样式等，以及表单里的隐藏字段（input type="hidden"）
+  function isSkipped(el) {
+    const tag = el.tagName.toLowerCase();
+    return SKIP_TAGS.has(tag) || (tag === 'input' && el.type === 'hidden');
   }
 
   function isInteractive(el) {
@@ -171,7 +184,7 @@
 
   // filter="all"：包括不可见元素；filter="interactive"：只要视口内可见的可交互元素
   function shouldInclude(el, opts) {
-    if (SKIP_TAGS.has(el.tagName.toLowerCase())) return false;
+    if (isSkipped(el)) return false;
     if (opts.filter !== 'all') {
       if (el.getAttribute('aria-hidden') === 'true') return false;
       if (!isVisible(el)) return false;
@@ -184,19 +197,27 @@
     return role !== 'generic' && role !== 'image';
   }
 
-  const quote = (s) => `"${s.replace(/\s+/g, ' ').slice(0, 100).replace(/"/g, '\\"')}"`;
+  // 文字和属性值都写在一对双引号里：空白合成一个空格，反斜杠和双引号转义
+  const escapeText = (s) => s.replace(/\s+/g, ' ').replace(/[\\"]/g, '\\$&');
+  const quote = (s) => `"${escapeText(s.replace(/\s+/g, ' ').slice(0, 100))}"`;
+  // 链接按网址规则去掉空白、双引号写成 %22；hrefMax 指定时只保留开头
+  const hrefValue = (v, hrefMax) => {
+    const url = v.replace(/\s+/g, '').replace(/"/g, '%22');
+    return hrefMax && url.length > hrefMax ? `${url.slice(0, hrefMax)}…` : url;
+  };
 
-  function describeLine(el, indent) {
+  function describeLine(el, indent, hrefMax, markHidden) {
     let line = `${' '.repeat(indent)}${roleOf(el)}`;
     const name = nameOf(el);
     if (name) line += ` ${quote(name)}`;
     line += ` [${refFor(el)}]`;
     for (const attr of ['href', 'type', 'placeholder']) {
       const v = el.getAttribute(attr);
-      if (v) line += ` ${attr}="${v}"`;
+      if (v) line += ` ${attr}="${attr === 'href' ? hrefValue(v, hrefMax) : escapeText(v)}"`;
     }
     if ((el.type === 'checkbox' || el.type === 'radio') && el.checked) line += ' checked';
     if (el.disabled) line += ' disabled';
+    if (markHidden && !isRendered(el)) line += ' hidden';
     return line;
   }
 
@@ -206,7 +227,8 @@
     return kids;
   }
 
-  function accessibilityTree({ filter, depth, maxChars, refId } = {}) {
+  // hrefMax：链接地址只保留开头若干字符；truncatedHint：内容超长被截断时替换默认的提示
+  function accessibilityTree({ filter, depth, maxChars, refId, hrefMax, truncatedHint } = {}) {
     const opts = { filter: filter || 'all', refId: refId || null };
     const maxDepth = depth ?? DEFAULT_DEPTH;
     const limit = maxChars ?? DEFAULT_MAX_CHARS;
@@ -219,14 +241,15 @@
       const tag = el.tagName.toLowerCase();
       if (include) {
         count++;
-        lines.push(describeLine(el, level));
+        // filter="all" 会包括没显示出来的元素，标上 hidden，免得照着它去点（点不到，要先展开它所在的菜单或区域）
+        lines.push(describeLine(el, level, hrefMax, opts.filter === 'all'));
         if (tag === 'select' && !isSensitive(el)) {
           for (const opt of el.options) {
             let line = `${' '.repeat(level + 1)}option`;
             const text = opt.textContent?.trim() || '';
             if (text) line += ` ${quote(text)}`;
             if (opt.selected) line += ' (selected)';
-            if (opt.value && opt.value !== text) line += ` value="${opt.value.replace(/"/g, '\\"')}"`;
+            if (opt.value && opt.value !== text) line += ` value="${escapeText(opt.value)}"`;
             lines.push(line);
           }
         }
@@ -245,25 +268,27 @@
       const total = content.length;
       let cut = content.lastIndexOf('\n', limit);
       if (cut <= 0) cut = limit;
-      content = `${content.slice(0, cut)}\n[output truncated at ${limit} of ${total} characters. Pass a larger max_chars (default ${DEFAULT_MAX_CHARS}) to see more, or ${focusHint}.]`;
+      const hint = truncatedHint || `Pass a larger max_chars (default ${DEFAULT_MAX_CHARS}) to see more, or ${focusHint}.`;
+      content = `${content.slice(0, cut)}\n[output truncated at ${limit} of ${total} characters. ${hint}]`;
     }
     return { pageContent: content, viewport: { width: innerWidth, height: innerHeight } };
   }
 
   // 本地关键词匹配（匹配不上时 tools.js 会把可交互元素交给调用方 agent 自己挑）
   // 描述里常见的元素类型词：命中时按元素类型匹配，其余文字再按内容匹配（例如“提交按钮” = 文字含“提交”的按钮）
+  // 英文类型词要整词匹配（也认复数），免得把 linkedin、buttonhole 之类拆开
   const ROLE_WORDS = [
-    [/搜索框|搜索栏|搜索输入框|search ?(?:box|bar|field|input)/, ['searchbox', 'textbox']],
-    [/输入框|文本框|输入栏|文本输入|编辑框|text ?(?:box|field|input)|input ?(?:box|field)/, ['textbox', 'searchbox', 'combobox']],
-    [/下拉框|下拉菜单|下拉列表|选择框|dropdown|select ?box/, ['combobox', 'listbox']],
-    [/复选框|勾选框|checkbox/, ['checkbox']],
-    [/单选框|单选按钮|radio/, ['radio']],
-    [/按钮|button/, ['button']],
-    [/链接|超链接|link/, ['link']],
-    [/图片|图像|image|picture/, ['img']],
-    [/选项卡|标签页|\btab\b/, ['tab']],
-    [/开关|switch|toggle/, ['switch', 'checkbox']],
-    [/滑块|slider/, ['slider']],
+    [/搜索框|搜索栏|搜索输入框|\bsearch ?(?:box|bar|field|input)(?:e?s)?\b/, ['searchbox', 'textbox']],
+    [/输入框|文本框|输入栏|文本输入|编辑框|\b(?:text ?(?:box|field|input|area)|input ?(?:box|field))(?:e?s)?\b/, ['textbox', 'searchbox', 'combobox']],
+    [/下拉框|下拉菜单|下拉列表|选择框|\b(?:dropdown|select ?box)(?:e?s)?\b/, ['combobox', 'listbox']],
+    [/复选框|勾选框|\bcheck ?box(?:es)?\b/, ['checkbox']],
+    [/单选框|单选按钮|\bradio(?: buttons?|s)?\b/, ['radio']],
+    [/按钮|\bbuttons?\b/, ['button']],
+    [/链接|超链接|\blinks?\b/, ['link']],
+    [/图片|图像|\b(?:images?|pictures?|img)\b/, ['image', 'img']],
+    [/选项卡|标签页|\btabs?\b/, ['tab']],
+    [/开关|\b(?:switch(?:es)?|toggles?)\b/, ['switch', 'checkbox']],
+    [/滑块|\bsliders?\b/, ['slider']],
   ];
 
   function find({ query, limit = 20 }) {
@@ -282,7 +307,7 @@
     const visit = (root) => {
       for (const el of root.querySelectorAll('*')) {
         if (el.shadowRoot) visit(el.shadowRoot);
-        if (SKIP_TAGS.has(el.tagName.toLowerCase())) continue;
+        if (isSkipped(el)) continue;
         const interactive = isInteractive(el);
         const name = nameOf(el);
         if (!interactive && !name && !isLandmark(el)) continue;
@@ -294,11 +319,13 @@
         ].filter(Boolean).join(' ').toLowerCase();
         let score = 0;
         for (const t of tokens) if (fields.includes(t)) score += 1;
-        const roleHit = wantedRoles.has(role);
-        // 只写了类型（如“搜索框”）时按类型找；类型和文字都写了时，类型对上加分，只对上类型的排在后面
-        if (roleHit) score += tokens.length ? (score ? 2 : 0.5) : 1;
-        if (!score) continue;
         const lowerName = name.toLowerCase();
+        // 整句话就在元素名字里（如名叫“图片”的链接）：即使这句话也是类型词，照样算文字对上
+        const textHit = score > 0 || lowerName.includes(q);
+        const roleHit = wantedRoles.has(role);
+        // 只写了类型（如“搜索框”）时按类型找；类型和文字都写了时，类型对上加分
+        if (roleHit) score += tokens.length ? (score ? 2 : 0.5) : 1;
+        if (!score && !textHit) continue;
         const text = (rest || q).trim();
         if (text && lowerName === text) score += 3;
         else if (text && lowerName.includes(text)) score += 2;
@@ -306,15 +333,21 @@
         const visible = isVisible(el);
         if (visible) score += 0.5;
         if (visible && inViewport(el)) score += 0.25;
-        matches.push({ el, role, name, score, visible, interactive });
+        matches.push({ el, role, name, score, visible, interactive, textHit });
       }
     };
     visit(document);
-    matches.sort((a, b) => b.score - a.score);
-    // 子元素与祖先元素同名时只保留得分更高的那个
+    // 类型和文字都写了（如“登录链接”）且有文字对上的元素时，不再列出只是类型对上的（否则页面上每个链接都算进来）
+    const pool = tokens.length && matches.some((m) => m.textHit) ? matches.filter((m) => m.textHit) : matches;
+    pool.sort((a, b) => b.score - a.score);
+    // 子元素与祖先元素同名时只保留得分更高的那个（按名字分组比较，大页面上不用两两比较全部结果）
     const picked = [];
-    for (const m of matches) {
-      if (picked.some((p) => p.name === m.name && (p.el.contains(m.el) || m.el.contains(p.el)))) continue;
+    const byName = new Map();
+    for (const m of pool) {
+      const same = byName.get(m.name);
+      if (same?.some((p) => p.el.contains(m.el) || m.el.contains(p.el))) continue;
+      if (same) same.push(m);
+      else byName.set(m.name, [m]);
       picked.push(m);
     }
     return {
@@ -333,6 +366,13 @@
   // 滚动到元素并返回其中心点的视口坐标（CSS 像素）；中心点被其他元素（如弹窗、横幅）挡住时一并返回遮挡者
   function scrollToRef({ ref }) {
     const el = getElement(ref);
+    if (!isRendered(el)) {
+      throw new AgentError(
+        'element_not_visible',
+        `Element ${ref} is hidden on the page (not rendered), so it cannot be clicked, hovered or scrolled to — it likely sits in a collapsed menu or section. ` +
+          'Reveal it first (e.g. click the control that expands it), then retry.',
+      );
+    }
     el.scrollIntoView({ behavior: 'instant', block: 'center', inline: 'center' });
     const r = el.getBoundingClientRect();
     const x = r.left + r.width / 2;

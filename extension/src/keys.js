@@ -62,6 +62,18 @@ for (const [plain, shifted, code, keyCode] of PUNCTUATION) {
 
 const SHIFTED_CHARS = '~!@#$%^&*()_+{}|:"<>?';
 
+// 只按住 shift 时键位产生的字符：shift+a → A，shift+1 → !，shift+; → :
+const SHIFT_MAP = Object.fromEntries(PUNCTUATION.map(([plain, shifted]) => [plain, shifted]));
+'!@#$%^&*()'.split('').forEach((ch, i) => {
+  SHIFT_MAP[String((i + 1) % 10)] = ch;
+});
+
+export function shiftedDefinition(def) {
+  if (def.isKeypad || def.text?.length !== 1) return def;
+  const ch = SHIFT_MAP[def.text] ?? (def.text >= 'a' && def.text <= 'z' ? def.text.toUpperCase() : null);
+  return ch ? { ...def, key: ch, text: ch } : def;
+}
+
 export function getKeyDefinition(name) {
   const def = KEYS[name.toLowerCase()];
   if (def) return def;

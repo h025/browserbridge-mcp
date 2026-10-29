@@ -3,6 +3,12 @@
 // 所以连接期间每 20 秒发一次 ping 即可保持后台常驻。
 
 export const DEFAULT_PORT = 18765;
+
+// 测试版的版本号写在 version_name（如 0.7.8-beta.1），version 只能是数字
+export const extensionVersion = () => {
+  const m = chrome.runtime.getManifest();
+  return m.version_name || m.version;
+};
 const PING_INTERVAL_MS = 20_000;
 
 export class Bridge {
@@ -63,7 +69,7 @@ export class Bridge {
       this.retryDelay = 1000;
       this.send({
         type: 'hello',
-        version: chrome.runtime.getManifest().version,
+        version: extensionVersion(),
         userAgent: navigator.userAgent,
       });
       clearInterval(this.pingTimer);
@@ -75,13 +81,13 @@ export class Bridge {
       this.lastError = chrome.i18n.getMessage('connectFailed', [`ws://127.0.0.1:${this.port}`]);
     };
     ws.onclose = () => {
+      // 已被新连接替换的旧连接（例如点了“重连”、改了端口）关闭得晚：不能停掉新连接的心跳，也不能当成断线处理
+      if (this.ws !== ws) return;
       clearInterval(this.pingTimer);
       const wasConnected = this.state === 'connected';
-      if (this.ws === ws) {
-        this.ws = null;
-        this.state = 'disconnected';
-        this.scheduleRetry();
-      }
+      this.ws = null;
+      this.state = 'disconnected';
+      this.scheduleRetry();
       if (wasConnected) this.hooks.onDisconnected?.();
     };
   }

@@ -32,6 +32,9 @@ const CLIENT_LABELS = [
 
 const live = new Set(); // 当前连着的会话；扩展与 MCP 服务断开时清空，重连后服务会重新告知
 const registering = new Map(); // 会话 ID -> 正在进行的登记（接回旧标签组等），请求要等它完成
+// 扩展连上 MCP 服务后，各会话会在几秒内重新报到；这段时间里没报到的会话不能当成已结束
+const ANNOUNCE_GRACE_MS = 5000;
+let connectedAt = 0;
 let sessionsPromise = null; // 会话记录的内存副本，修改后写回 storage
 
 // 读取时只保留标签组还在、且组名对得上的记录：浏览器重启后组 ID 会重新分配，
@@ -119,13 +122,20 @@ async function register(info) {
   rec.client = info.client || rec.client || '';
   rec.folder = info.folder ?? rec.folder ?? '';
   rec.cwd = info.cwd ?? rec.cwd ?? '';
+  rec.ended = false;
   live.add(info.id);
-  // 同一客户端在同一目录重新启动：接回上一个已结束会话的标签组
+  // 同一客户端在同一目录重新启动：接回上一个已结束会话的标签组。明确收到结束通知的直接接回；
+  // 没收到通知的（hub 退出、扩展重连）先等其他会话重新报到，仍没报到才算结束，免得抢走还在运行的会话的组
   let adopted = false;
   if (rec.groupId == null && rec.client) {
     for (const old of Object.values(all)) {
       if (old.id === rec.id || live.has(old.id) || old.client !== rec.client || old.cwd !== rec.cwd) continue;
       if (!(await groupExists(old.groupId))) continue;
+      if (!old.ended) {
+        const wait = connectedAt + ANNOUNCE_GRACE_MS - Date.now();
+        if (wait > 0) await sleep(wait);
+        if (live.has(old.id) || !all[old.id]) continue;
+      }
       rec.groupId = old.groupId;
       rec.color = old.color;
       rec.title = old.title;
@@ -143,8 +153,19 @@ async function register(info) {
   await save();
 }
 
-export function endSession(id) {
+// MCP 服务通知某个会话已结束（agent 退出）
+export async function endSession(id) {
   live.delete(id);
+  const rec = (await sessions())[id];
+  if (rec) {
+    rec.ended = true;
+    await save();
+  }
+}
+
+// 扩展连上 MCP 服务（之后各会话会重新报到）
+export function markConnected() {
+  connectedAt = Date.now();
 }
 
 // 扩展与 MCP 服务断开：所有会话都视为离线，重连后服务会重新告知

@@ -1,5 +1,6 @@
 // 页面指示器 / upload_image / gif_creator / 空闲释放
-import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { HERE, setup, sleep, userPage } from './harness.mjs';
 
@@ -49,6 +50,15 @@ try {
   const ex = await call('gif_creator', { tabId, action: 'export', download: true, filename: gifPath });
   const gif = existsSync(gifPath) ? readFileSync(gifPath) : Buffer.alloc(0);
   expect(gif.subarray(0, 6).toString() === 'GIF89a' && ex.t.includes(gifPath), `GIF 已保存（${Math.round(gif.length / 1024)}KB）`);
+  // 借符号链接指向允许范围以外，再接一级还不存在的目录：不能写出去
+  const outside = mkdtempSync(join(tmpdir(), 'bb-outside-'));
+  symlinkSync(outside, join(HERE, 'out/link'));
+  await call('gif_creator', { tabId, action: 'start_recording' }, { quiet: true });
+  await call('computer', { tabId, action: 'screenshot' }, { quiet: true });
+  await call('gif_creator', { tabId, action: 'stop_recording' }, { quiet: true });
+  const escape = await call('gif_creator', { tabId, action: 'export', download: true, filename: join(HERE, 'out/link/sub/escape.gif') });
+  expect(/not allowed/.test(escape.t) && !existsSync(join(outside, 'sub')), '保存路径经符号链接跳出允许的目录时拒绝，且没有在外面建目录');
+  rmSync(outside, { recursive: true, force: true });
   rmSync(join(HERE, 'out'), { recursive: true, force: true });
   await call('gif_creator', { tabId, action: 'start_recording' });
   await call('computer', { tabId, action: 'screenshot' });

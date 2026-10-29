@@ -1,7 +1,7 @@
 // MCP 服务：通过 stdio 与 MCP 客户端通信，经本机 WebSocket 桥把工具调用交给浏览器扩展执行。
 // 由 cli.js 调用 startServer() 启动
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, delimiter, dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -48,12 +48,35 @@ function realOrSelf(p) {
   }
 }
 
+// 解析路径里的符号链接；还不存在的部分（要新建的文件和目录）接在最近一级已存在的目录后面
+function resolveReal(abs) {
+  let existing = abs;
+  const rest = [];
+  for (;;) {
+    try {
+      lstatSync(existing);
+      break;
+    } catch {
+      const parent = dirname(existing);
+      if (parent === existing) break;
+      rest.unshift(basename(existing));
+      existing = parent;
+    }
+  }
+  try {
+    return join(realpathSync(existing), ...rest);
+  } catch {
+    // 指向不存在位置的符号链接：写文件时会顺着它写到别处，直接拒绝
+    throw new Error(`Cannot resolve path (broken symbolic link?): ${abs}`);
+  }
+}
+
 // 返回规范化后的绝对路径；不在允许的目录内或经过隐藏文件/目录时抛错
 function checkLocalPath(input, { mustExist }) {
   const abs = resolve(expandHome(String(input)));
   if (mustExist && !existsSync(abs)) throw new Error(`File not found: ${abs}`);
-  // 解析符号链接，防止借链接跳出允许的目录；新文件按其所在目录解析
-  const real = mustExist ? realOrSelf(abs) : join(realOrSelf(dirname(abs)), basename(abs));
+  // 解析符号链接，防止借链接跳出允许的目录
+  const real = resolveReal(abs);
   const root = FILE_DIRS.find((d) => real === d || real.startsWith(d.endsWith(sep) ? d : d + sep));
   if (!root) {
     throw new Error(`Access to ${abs} is not allowed. Local files must be inside: ${FILE_DIRS.join(', ')} (set BROWSER_BRIDGE_FILE_DIRS to change this).`);

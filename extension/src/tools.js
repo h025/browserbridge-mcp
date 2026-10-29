@@ -1,6 +1,7 @@
 // 工具实现与分发。每个工具返回 { output, base64Image?, imageFormat?, tabContext?, batchItems? }
 // 或抛出 ToolError；runTool 统一转成 { error, errorCode }，由 MCP 服务格式化后交给 Claude。
 import { toolFinished, toolStarted } from './activity.js';
+import { extensionVersion } from './bridge.js';
 import {
   clearConsoleMessages, clearNetworkRequests, enableConsoleTracking, enableNetworkTracking, ensureAttached, getConsoleMessages, getNetworkRequests,
   navigateWithBeforeunload, protectedProtocol, sendCommand, settlePendingDialog, sleep, takeDialogNotes, ToolError, withTimeout,
@@ -19,7 +20,11 @@ const SCRIPT_TIMEOUT_MS = 15_000;
 const CANDIDATES_MAX_CHARS = 8_000;
 // 候选元素列表里的链接地址只保留开头，几百个字符的地址既占篇幅又没用
 const HREF_KEEP = 60;
-const shortenHrefs = (text) => text.replace(/href="([^"]*)"/g, (all, url) => (url.length > HREF_KEEP ? `href="${url.slice(0, HREF_KEEP)}…"` : all));
+// 候选清单被截断（页面很大）时，建议能开子助手的调用方交给子助手读整页，主对话只拿回编号
+const CANDIDATES_TRUNCATED_HINT =
+  'This list is incomplete. If you can delegate to a sub-agent, have it call read_page on this tab and report back only the matching ref, ' +
+  'and whether that line is marked hidden (a hidden element must be revealed first, e.g. by expanding its menu or section). ' +
+  'It shares this tab group, and refs it finds stay valid for you. Otherwise scroll to bring other elements into view, or use read_page yourself.';
 
 const invalid = (message) => new ToolError('input_invalid', message);
 
@@ -142,10 +147,12 @@ const TOOLS = {
     };
   },
 
-  async tabs_create_mcp(_args, { session }) {
-    const { tab } = await createTabInGroup(session);
+  async tabs_create_mcp(_args, ctx) {
+    const { tab } = await createTabInGroup(ctx.session);
+    // 和其他工具一样标记活动：调用结束后计时，空闲一段时间自动断开调试器
+    markActive(tab.id, ctx);
     await ensureAttached(tab.id).catch(() => {});
-    return { output: `Created new tab. Tab ID: ${tab.id}`, tabContext: await tabContext(tab.id, session) };
+    return { output: `Created new tab. Tab ID: ${tab.id}`, tabContext: await tabContext(tab.id, ctx.session) };
   },
 
   async tabs_close_mcp({ tabId }, { session }) {
@@ -215,7 +222,8 @@ const TOOLS = {
     if (typeof query !== 'string' || !query.trim()) throw invalid('Query parameter is required');
     await useTab(tabId, ctx);
     const { total, items } = await agent(tabId, 'find', { query, limit: 20 });
-    const candidates = async () => shortenHrefs((await agent(tabId, 'accessibilityTree', { filter: 'interactive', maxChars: CANDIDATES_MAX_CHARS })).pageContent);
+    const candidates = async () =>
+      (await agent(tabId, 'accessibilityTree', { filter: 'interactive', maxChars: CANDIDATES_MAX_CHARS, hrefMax: HREF_KEEP, truncatedHint: CANDIDATES_TRUNCATED_HINT })).pageContent;
     if (!items.length) {
       const list = await candidates();
       if (!list.trim()) {
@@ -226,7 +234,8 @@ const TOOLS = {
       };
     }
     const more = total > items.length ? ` (showing first ${items.length}, use a more specific query to narrow results)` : '';
-    const lines = items.map((m) => `- ${m.ref}: ${m.role}${m.name ? ` "${m.name.replace(/\s+/g, ' ').slice(0, 100)}"` : ''}${m.type ? ` (${m.type})` : ''}${m.hidden ? ' [not visible]' : ''}`);
+    const name = (s) => ` "${s.replace(/\s+/g, ' ').slice(0, 100).replace(/[\\"]/g, '\\$&')}"`;
+    const lines = items.map((m) => `- ${m.ref}: ${m.role}${m.name ? name(m.name) : ''}${m.type ? ` (${m.type})` : ''}${m.hidden ? ' [not visible]' : ''}`);
     let output = `Found ${total} matching element${total === 1 ? '' : 's'}${more}\n\n${lines.join('\n')}`;
     if (!items.some((m) => m.interactive)) {
       const list = await candidates();
@@ -439,7 +448,7 @@ async function runOne(name, args, ctx) {
 // opts.session：发起调用的会话（agent），只能操作该会话自己的标签组
 export async function runTool(name, args = {}, opts = {}) {
   if (!TOOLS[name]) {
-    const version = chrome.runtime.getManifest().version;
+    const version = extensionVersion();
     return { error: `Unknown tool: ${name}. The Browser Bridge extension (v${version}) may be older than the MCP server — ask the user to reload it in chrome://extensions.`, errorCode: 'unknown_tool' };
   }
   let result;

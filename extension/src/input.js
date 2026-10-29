@@ -1,6 +1,6 @@
 // 通过 CDP 派发真实的鼠标/键盘事件（isTrusted = true）
 import { ensureAttached, sendCommand, sendCommandFast, sleep, ToolError, withTimeout } from './cdp.js';
-import { getKeyDefinition, MAC_EDITING_COMMANDS, modifierBits, normalizeModifier, parseChord, requiresShift } from './keys.js';
+import { getKeyDefinition, MAC_EDITING_COMMANDS, modifierBits, normalizeModifier, parseChord, requiresShift, shiftedDefinition } from './keys.js';
 
 const BUTTON_MASK = { none: 0, left: 1, right: 2, middle: 4 };
 const MODIFIER_KEYS = {
@@ -124,8 +124,10 @@ function pressKey(tabId, def, modifiers = 0, commands = []) {
 async function pressChord(tabId, chord) {
   const { modifiers, key, id } = parseChord(chord);
   if (!key) throw new ToolError('input_invalid', `No key to press in chord: ${chord}`);
-  const def = getKeyDefinition(key) || MODIFIER_KEYS[normalizeModifier(key)];
+  let def = getKeyDefinition(key) || MODIFIER_KEYS[normalizeModifier(key)];
   if (!def) throw new ToolError('input_invalid', `Unknown key: ${chord}`);
+  // 只按 shift 时和真实键盘一样输入大写或上档字符；和 ctrl/alt/cmd 组合的快捷键不产生文字，保持原样
+  if (modifiers.length === 1 && modifiers[0] === 'shift') def = shiftedDefinition(def);
   const commands = (await isMac()) ? [].concat(MAC_EDITING_COMMANDS[id] ?? []) : [];
 
   let bits = 0;

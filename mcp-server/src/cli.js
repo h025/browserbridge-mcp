@@ -3,9 +3,9 @@
 //   browserbridge-mcp                    启动 MCP 服务（由 MCP 客户端调用，通过 stdio 通信）
 //   browserbridge-mcp extension [目录]   把 Chrome 扩展复制到目录（默认 ~/browser-bridge-extension）
 //   browserbridge-mcp --version | --help
-import { cpSync, existsSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, readdirSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { say } from './i18n.js';
 import { VERSION } from './version.js';
@@ -37,6 +37,25 @@ function exportExtension(target) {
     process.exit(1);
   }
   const dst = resolve(target ? target.replace(/^~(?=$|[\\/])/, homedir()) : join(homedir(), 'browser-bridge-extension'));
+  // 目标就是随包附带的扩展目录（或互相包含）时，先删目标会把源文件一起删掉
+  const real = (p) => {
+    try {
+      return realpathSync(p);
+    } catch {
+      return p;
+    }
+  };
+  const inside = (a, b) => {
+    const rel = relative(real(b), real(a));
+    return !rel.startsWith('..') && !isAbsolute(rel);
+  };
+  if (inside(dst, src) || inside(src, dst)) {
+    console.error(say(
+      `目录 ${dst} 就是随包附带的扩展目录，不能复制到这里。请换一个目录。`,
+      `${dst} overlaps the bundled extension folder. Pick another folder.`,
+    ));
+    process.exit(1);
+  }
   if (existsSync(dst) && readdirSync(dst).length && !isOurExtension(dst)) {
     console.error(say(
       `目录 ${dst} 不为空，且不是 Browser Bridge 扩展目录。请换一个目录，或先清空它。`,

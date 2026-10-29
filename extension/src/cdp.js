@@ -50,6 +50,7 @@ const attachInFlight = new Map();
 const consoleByTab = new Map(); // tabId -> { domain, messages }
 const networkByTab = new Map(); // tabId -> { domain, requests }
 const pageDomainByTab = new Map();
+const mainFrameByTab = new Map(); // 标签页主框架的 frameId，用来区分主文档跳转和 iframe 里的请求
 const beforeunloadPolicy = new Map(); // tabId -> 'accept' | 'dismiss'
 const beforeunloadOutcome = new Map(); // tabId -> { action, url }
 const beforeunloadWaiters = new Map();
@@ -80,7 +81,7 @@ export function initCdp() {
   chrome.tabs.onRemoved.addListener((tabId) => {
     attached.delete(tabId);
     mutedByUs.delete(tabId);
-    for (const m of [consoleByTab, networkByTab, pageDomainByTab, beforeunloadPolicy, beforeunloadOutcome, dialogNotes, openDialogs, runtimeEnabledAt, consoleTracking, networkTracking]) m.delete(tabId);
+    for (const m of [consoleByTab, networkByTab, pageDomainByTab, mainFrameByTab, beforeunloadPolicy, beforeunloadOutcome, dialogNotes, openDialogs, runtimeEnabledAt, consoleTracking, networkTracking]) m.delete(tabId);
     resolveBeforeunloadWaiter(tabId);
   });
   chrome.tabs.onActivated.addListener(({ tabId }) => liftMute(tabId));
@@ -289,6 +290,7 @@ function onEvent({ tabId }, method, params) {
   switch (method) {
     case 'Page.frameNavigated': {
       if (params.frame.parentId) return;
+      mainFrameByTab.set(tabId, params.frame.id);
       pageDomainByTab.set(tabId, hostnameOf(params.frame.url));
       resolveBeforeunloadWaiter(tabId);
       return;
@@ -332,8 +334,12 @@ function onEvent({ tabId }, method, params) {
         const prev = networkByTab.get(tabId)?.requests.findLast((r) => r.requestId === params.requestId);
         if (prev && prev.status == null) prev.status = params.redirectResponse.status;
       }
-      // 以请求所属文档的域名分组：跳转到新域名时，主文档请求会开启新的分组
-      const domain = hostnameOf(params.documentURL || params.request.url);
+      // 按页面域名分组：只有主框架的页面跳转才可能开启新分组；iframe（广告、视频、验证码）和页面里的其他请求
+      // 都记在当前页面名下，否则主文档和 iframe 的请求交替到达时，列表会被一次次清空
+      const mainNav = params.type === 'Document' && params.frameId === (mainFrameByTab.get(tabId) ?? params.frameId);
+      const domain = mainNav
+        ? hostnameOf(params.request.url)
+        : networkByTab.get(tabId)?.domain ?? pageDomainByTab.get(tabId) ?? hostnameOf(params.documentURL || params.request.url);
       const list = bucket(networkByTab, tabId, domain, 'requests');
       pushCapped(list, {
         requestId: params.requestId,
@@ -417,23 +423,26 @@ function resolveBeforeunloadWaiter(tabId) {
 export async function navigateWithBeforeunload(tabId, force, run) {
   beforeunloadPolicy.set(tabId, force ? 'accept' : 'dismiss');
   beforeunloadOutcome.delete(tabId);
-  await run();
-  if (beforeunloadOutcome.get(tabId)?.action !== 'dismissed') {
-    await new Promise((resolve) => {
-      const timer = setTimeout(() => {
-        beforeunloadWaiters.delete(tabId);
-        resolve();
-      }, 300);
-      beforeunloadWaiters.set(tabId, () => {
-        clearTimeout(timer);
-        resolve();
+  try {
+    await run();
+    if (beforeunloadOutcome.get(tabId)?.action !== 'dismissed') {
+      await new Promise((resolve) => {
+        const timer = setTimeout(() => {
+          beforeunloadWaiters.delete(tabId);
+          resolve();
+        }, 300);
+        beforeunloadWaiters.set(tabId, () => {
+          clearTimeout(timer);
+          resolve();
+        });
       });
-    });
+    }
+    return beforeunloadOutcome.get(tabId) || null;
+  } finally {
+    // 导航失败（例如没有可后退的历史）时也要清掉：留下的策略会被之后无关的“离开此网站？”对话框用掉
+    beforeunloadOutcome.delete(tabId);
+    beforeunloadPolicy.delete(tabId);
   }
-  const outcome = beforeunloadOutcome.get(tabId);
-  beforeunloadOutcome.delete(tabId);
-  beforeunloadPolicy.delete(tabId);
-  return outcome || null;
 }
 
 export function getConsoleMessages(tabId, onlyErrors, pattern) {

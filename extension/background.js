@@ -3,7 +3,7 @@ import { Bridge, DEFAULT_PORT } from './src/bridge.js';
 import { initCdp } from './src/cdp.js';
 import { closeOffscreen, ensureOffscreen } from './src/gif.js';
 import { initScreenshotState } from './src/screenshot.js';
-import { addTabToGroup, DEFAULT_SESSION, endSession, liveSessions, markAllOffline, registerSession } from './src/tabs.js';
+import { addTabToGroup, DEFAULT_SESSION, endSession, liveSessions, markAllOffline, markConnected, registerSession } from './src/tabs.js';
 import { runTool } from './src/tools.js';
 
 // 所有监听器必须在顶层同步注册，Service Worker 被唤醒时才能收到事件
@@ -16,7 +16,10 @@ const startupCleanup = cleanupOnStartup();
 // 每个请求带着发起它的会话（agent）；旧版 MCP 服务不带，归入默认会话
 const bridge = new Bridge((name, args, opts) => startupCleanup.then(() => runTool(name, args, { ...opts, session: opts.session || DEFAULT_SESSION })), {
   // 连接期间用离屏文档保活，避免后台节流导致连接中断
-  onConnected: () => ensureOffscreen().catch(() => {}),
+  onConnected: () => {
+    markConnected();
+    ensureOffscreen().catch(() => {});
+  },
   // MCP 服务全部断开：隐藏指示器、断开所有调试器；重连后服务会重新告知各会话
   onDisconnected: () => {
     markAllOffline();
@@ -26,7 +29,7 @@ const bridge = new Bridge((name, args, opts) => startupCleanup.then(() => runToo
   onSession: (session) => registerSession(session).catch(() => {}),
   // agent 退出：释放它的标签页，标签组保留
   onSessionEnd: (id) => {
-    endSession(id);
+    endSession(id).catch(() => {});
     releaseSession(id).catch(() => {});
   },
 });

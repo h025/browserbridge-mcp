@@ -13,8 +13,10 @@ const repoRoot = join(serverDir, '..');
 export const VERSION = JSON.parse(readFileSync(join(serverDir, 'package.json'), 'utf8')).version;
 export const EXTENSION_DIR = join(repoRoot, 'extension');
 
+// Chrome 的 version 只能是数字，测试版另用 version_name（如 0.7.8-beta.1）显示，和 MCP 服务的版本号比对
 export function checkVersions() {
-  const extVersion = JSON.parse(readFileSync(join(EXTENSION_DIR, 'manifest.json'), 'utf8')).version;
+  const manifest = JSON.parse(readFileSync(join(EXTENSION_DIR, 'manifest.json'), 'utf8'));
+  const extVersion = manifest.version_name || manifest.version;
   if (extVersion !== VERSION) throw new Error(`版本不一致：扩展 ${extVersion}，MCP 服务 ${VERSION}。请先统一版本号。`);
 }
 
