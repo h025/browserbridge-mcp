@@ -98,7 +98,7 @@ node scripts/package.mjs
 
 扩展和 MCP 服务的版本号需一致（`extension/manifest.json` 与 `mcp-server/package.json`），否则打包脚本会报错。
 
-**自动发布**：推送到 `main` 后，GitHub Actions（`.github/workflows/release.yml`）会自动打包，把 zip 安装包发布到 [Releases](https://github.com/h025/browserbridge-mcp/releases) 的 `v<版本号>`。版本号没变时更新同一个 Release（替换安装包），要发新版本先改版本号再推送。包里不含任何 AI 接口配置，由使用者在扩展的「设置」里自行填写。
+**自动发布**：推送到 `main` 后，GitHub Actions（`.github/workflows/release.yml`）会自动打包，把 zip 安装包发布到 [Releases](https://github.com/h025/browserbridge-mcp/releases) 的 `v<版本号>`。版本号没变时更新同一个 Release（替换安装包），要发新版本先改版本号再推送。npm 上还没有这个版本时，同时发布 [@h025/browserbridge-mcp](https://www.npmjs.com/package/@h025/browserbridge-mcp)：使用 npm 受信发布（npmjs.com 上信任本仓库的 `release.yml`），不需要 npm 令牌，并自动附带来源证明。包里不含任何 AI 接口配置，由使用者在扩展的「设置」里自行填写。
 
 ## 在其他 MCP 客户端中使用
 

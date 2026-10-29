@@ -1,7 +1,8 @@
-# 推送到 main 时自动打包，把 zip 安装包发布到 GitHub Release。
+# 推送到 main 时自动打包，把 zip 安装包发布到 GitHub Release，新版本同时发布到 npm。
 # Release 按版本号命名为 v<版本号>（mcp-server/package.json 与 extension/manifest.json 的版本，二者必须一致）：
 # - 这个版本还没发布过：新建 Release 和标签
 # - 已经发布过（版本号没变）：把标签移到这次提交，替换安装包并更新说明
+# npm 上没有这个版本时发布 @h025/browserbridge-mcp，已有则跳过。
 # 要发布新版本时，先改版本号再推送。也可以在 Actions 页面手动运行。
 name: 打包发布
 
@@ -9,9 +10,6 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-
-permissions:
-  contents: write
 
 # 连续推送时按顺序发布，避免同时改同一个 Release
 concurrency:
@@ -21,6 +19,8 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v7
 
@@ -71,4 +71,39 @@ jobs:
             gh release edit "$TAG" --notes-file notes.md
           else
             gh release create "$TAG" "$ZIP" --target "$GITHUB_SHA" --title "Browser Bridge $TAG" --notes-file notes.md
+          fi
+
+  # 用 npm 的受信发布（OIDC）：npmjs.com 上已信任本仓库的 release.yml，不需要 npm 令牌，并自动附带来源证明。
+  # 等 Release 打包成功后再发布
+  npm:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+
+      # Node 24 自带的 npm 11 支持受信发布（需要 11.5.1 以上）
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          cache: npm
+          cache-dependency-path: mcp-server/package-lock.json
+
+      - name: 安装构建依赖
+        run: npm ci
+        working-directory: mcp-server
+
+      - name: 发布到 npm
+        working-directory: mcp-server
+        run: |
+          NAME=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+          echo "npm $(npm -v)"
+          if [ -n "$(npm view "$NAME@$VERSION" version 2>/dev/null)" ]; then
+            echo "$NAME@$VERSION 已在 npm 上，跳过发布"
+          else
+            npm publish
           fi
