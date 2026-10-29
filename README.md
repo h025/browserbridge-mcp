@@ -42,7 +42,7 @@ claude mcp add browser-bridge -s user -- node "$(pwd)/src/cli.js"
 
 | 工具 | 作用 |
 | --- | --- |
-| `tabs_context_mcp` | 列出本 agent 标签组里的标签页；`createIfEmpty: true` 时新开窗口并建组 |
+| `tabs_context_mcp` | 列出本 agent 标签组里的标签页；`createIfEmpty: true` 时在当前窗口新开标签页并建组 |
 | `tabs_create_mcp` / `tabs_close_mcp` | 在组内新建（后台）/ 关闭标签页 |
 | `navigate` | 打开 URL、后退、前进；遇到「离开此网站？」默认不离开，`force: true` 时放弃修改 |
 | `computer` | 截图、点击、双击、三击、右键、悬停、拖拽、输入、按键、滚动、`scroll_to`、`zoom`、等待 |
@@ -65,8 +65,8 @@ claude mcp add browser-bridge -s user -- node "$(pwd)/src/cli.js"
 - **键盘**：`type` 逐字符发送真实按键，键盘上没有的字符（中文、emoji 等）直接插入；`key` 支持组合键，macOS 上自动附带系统编辑命令（`cmd+a` / `cmd+c` / `cmd+v` 等才能生效）；刷新快捷键会直接刷新页面，页面缩放快捷键会被拒绝。
 - **点击打开新标签页**时，新标签页会加入标签组，返回结果里给出它的 tabId；按 ref 点击时若元素中心被弹窗、横幅等遮挡，结果里会提示。
 - **取消**：在 Claude Code 里按 Esc 取消调用时，正在执行的 `browser_batch` 会停止后续步骤。
-- **页面指示器**：Claude 操作时，页面四周显示彩色渐变边框和光晕，渐变光标会动画移到点击位置；截图时自动隐藏。
-- **自动释放**：标签页 20 秒没有新操作就断开调试器（Chrome 顶部的「正在调试」提示条随之消失），MCP 服务断开时全部释放；标签组标题显示 ⌛（执行中）/ ✅（已完成）。标签页被拖出标签组后立即收回控制。
+- **页面指示器**：Claude 操作时，页面四周出现缓慢旋转、带呼吸节奏的彩色光晕，渐变光标会动画移到点击位置；截图时自动隐藏。
+- **自动释放**：标签页 20 秒没有新操作就断开调试器（Chrome 顶部的「正在调试」提示条随之消失），MCP 服务断开时全部释放；正在操作时标签组标题开头的 emoji 换成 ⌛，空闲后换回来。标签页被拖出标签组后立即收回控制。
 - **操作前校验域名**：点击、输入、上传、执行 JS 前确认页面没有跳到别的域名，否则拒绝执行。
 - **后台标签页静音**：焦点模拟可能让后台页面的音视频出声，会先静音，切到该标签页后恢复。
 - **其他扩展干扰**：其他扩展（如密码管理器）注入的 iframe 导致调试器无法附加时，自动移除后重试。
@@ -78,7 +78,6 @@ claude mcp add browser-bridge -s user -- node "$(pwd)/src/cli.js"
 
 - `find`：可选接入自己的 AI 接口理解自然语言（见下文「AI 元素查找」），未配置时用本地关键词匹配。
 - 不需要账号，也没有网站权限弹窗。
-- 页面底部有「停止」按钮：点击后 Claude 的下一次调用会被拒绝并要求它停下来询问你。
 - `gif_creator` 的 `download: true` 由 MCP 服务把 GIF 写到本地磁盘并返回路径。
 - 对话框处理：Claude 执行操作期间页面弹出的 alert 自动确认、confirm/prompt 自动取消（否则页面会被阻塞），并在结果中提示；Claude 空闲时出现的对话框（可能是你自己的操作）留给你处理，Claude 下次操作该标签页时若仍未关闭才自动处理。
 
@@ -116,7 +115,7 @@ MCP 服务是标准 stdio 服务，Claude 桌面版、Codex、Cursor、VS Code �
 
 ## 界面语言
 
-扩展的弹窗、设置页、页面上的「停止」按钮和 GIF 动作标签跟随浏览器界面语言，目前支持中文和英文（其他语言显示英文），文字在 `extension/_locales/` 中。命令行 `browserbridge-mcp` 的提示和「扩展未连接」等提示跟随系统语言（`LANG`）。返回给模型的工具说明和结果始终是英文。
+扩展的弹窗、设置页和 GIF 动作标签跟随浏览器界面语言，目前支持中文和英文（其他语言显示英文），文字在 `extension/_locales/` 中。命令行 `browserbridge-mcp` 的提示和「扩展未连接」等提示跟随系统语言（`LANG`）。返回给模型的工具说明和结果始终是英文。
 
 ## 权限与安全
 
@@ -126,8 +125,7 @@ MCP 服务是标准 stdio 服务，Claude 桌面版、Codex、Cursor、VS Code �
 
 每个 MCP 服务进程（也就是每个 agent 会话）有自己的标签组，看不到、也操作不了别的 agent 的标签页：
 
-- **组名**：客户端名 · 项目目录，例如「Claude Code · my-app」「Codex · api」；重名时加序号，每个组颜色不同。桌面客户端没有项目目录，只显示客户端名。
-- **停止**：页面上的「停止」只拦下这个标签页所属的 agent，其他 agent 照常工作。
+- **组名**：「emoji 客户端名 · 任务名」，例如「✈️ Claude Code · 查机票」「🛒 Codex · 比价」。任务名和 emoji 由 AI 助手根据你的要求总结，换任务时组名跟着换；还没有任务名时只显示「🤖 客户端名」。重名时加序号，每个组颜色不同。
 - **退出与重启**：agent 退出后它的标签组保留（标签页不关闭）；同一客户端在同一目录重新启动（例如 Claude Code 里 `/mcp` 重连）时接回原来的组，之前的标签页 ID 仍然有效。
 - **升级**：0.7.0 之前共用的 “Browser Bridge” / “Claude Bridge” 组由第一个需要标签组的 agent 接手。旧版 MCP 服务（不带会话信息）的请求共用一个名为 “Browser Bridge” 的组。
 - WebSocket 服务只监听 `127.0.0.1`，并校验 `Origin`：普通网页无法连接；扩展端只接受本扩展（manifest 中的 `key` 固定了扩展 ID `oajlnlbllfohnlkecpodgediipicjajd`），其他扩展无法冒充来截获 Claude 输入的内容。如需改用其他扩展 ID，设置环境变量 `BROWSER_BRIDGE_EXTENSION_IDS`（逗号分隔）。本机的其他程序仍可连接，请只在可信的电脑上使用。
@@ -160,10 +158,10 @@ extension/
   src/keys.js            US 键位表与 macOS 编辑命令
   src/screenshot.js      截图、token 预算缩放与坐标换算
   src/tabs.js            按 agent 会话管理标签组、域名校验
-  src/activity.js        活动跟踪：页面指示器、空闲释放、停止请求、标签组状态前缀
+  src/activity.js        活动跟踪：页面指示器、空闲释放、标签组状态前缀
   src/gif.js             GIF 录制与导出
   src/page-agent.js      内容脚本：可访问性树、ref、表单、上传/拖放、正文提取、关键词查找
-  src/indicator.js       内容脚本：彩色渐变边框、动画光标、停止按钮
+  src/indicator.js       内容脚本：旋转、呼吸的彩色光晕，动画光标
   src/i18n.js            界面文字的取用与填充
   offscreen.html / .js   离屏文档：GIF 合成编码、Service Worker 保活
   vendor/gifenc.js       GIF 编码库（gifenc 1.0.3，MIT）

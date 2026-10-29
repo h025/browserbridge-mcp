@@ -1,9 +1,13 @@
 // 每个 MCP 会话（一个 agent）有自己的标签组，只能操作自己组里的标签页，多个 agent 互不干扰。
-// 会话还没有标签组时，tabs_context_mcp(createIfEmpty) 会新开一个窗口并建组，与用户自己的窗口分开。
+// 会话还没有标签组时，tabs_context_mcp(createIfEmpty) 在用户当前所在的窗口里新开一个标签页并建组。
 // 用户也可以把标签页拖进某个 agent 的组，或在扩展弹窗里把当前标签页交给某个 agent。
 //
-// 会话记录 { id, client, folder, cwd, groupId, title, color } 存在 chrome.storage.session，Service Worker
-// 重启后仍在。agent 退出后标签组保留；同一客户端在同一目录重新启动（例如 /mcp 重连）时接回原来的组。
+// 组名是「emoji 客户端 · 任务名」，例如「✈️ Claude Code · 查机票」：任务名和 emoji 由 agent 通过
+// tabs_context_mcp 的 taskName 给出；正在操作时 emoji 换成 ⌛，空闲后换回来。
+//
+// 会话记录 { id, client, folder, cwd, groupId, task, emoji, title, color } 存在 chrome.storage.session，
+// Service Worker 重启后仍在（title 是不含 emoji 的组名）。agent 退出后标签组保留；同一客户端在同一目录
+// 重新启动（例如 /mcp 重连）时接回原来的组。
 import { hostnameOf, sleep, ToolError } from './cdp.js';
 
 // 旧版 MCP 服务（0.6.0 及以前）的请求不带会话 ID，归入这个默认会话
@@ -15,6 +19,11 @@ const LEGACY_TITLES = ['Browser Bridge', 'Claude Bridge'];
 const SESSIONS_KEY = 'bridgeSessions';
 const COLORS = ['purple', 'blue', 'pink', 'cyan', 'orange', 'green', 'red', 'yellow', 'grey'];
 const PREFIX_RE = /^(⌛|✅) /;
+const BUSY = '⌛';
+const DEFAULT_EMOJI = '🤖';
+// 任务名开头的 emoji（含变体选择符、组合序列）
+const EMOJI_RE = /^(\p{Extended_Pictographic}\uFE0F?(?:\u200D\p{Extended_Pictographic}\uFE0F?)*)\s*/u;
+const TASK_MAX = 30;
 // 常见 MCP 客户端的显示名称
 const CLIENT_LABELS = [
   [/claude-code/i, 'Claude Code'], [/claude/i, 'Claude'], [/codex/i, 'Codex'], [/cursor/i, 'Cursor'], [/windsurf/i, 'Windsurf'],
@@ -44,10 +53,10 @@ function clientLabel(client) {
   return CLIENT_LABELS.find(([re]) => re.test(client))?.[1] || client.slice(0, 20);
 }
 
-// 组名：客户端 · 项目目录；与其他组重名时加序号，已有的组名尽量不变
+// 组名（不含 emoji）：客户端 · 任务名，还没有任务名时只用客户端名；与其他组重名时加序号，已有的组名尽量不变
 function makeTitle(rec, all) {
   if (rec.id === DEFAULT_SESSION) return DEFAULT_TITLE;
-  const base = rec.folder ? `${clientLabel(rec.client)} · ${rec.folder}` : clientLabel(rec.client);
+  const base = rec.task ? `${clientLabel(rec.client)} · ${rec.task}` : clientLabel(rec.client);
   const taken = new Set(Object.values(all).filter((r) => r.id !== rec.id && r.groupId != null).map((r) => r.title));
   if (rec.title && (rec.title === base || rec.title.startsWith(`${base} `)) && !taken.has(rec.title)) return rec.title;
   if (!taken.has(base)) return base;
@@ -60,11 +69,14 @@ function pickColor(rec, all) {
   return COLORS.find((c) => !used.has(c)) || COLORS[Object.keys(all).length % COLORS.length];
 }
 
-// 设置组名和颜色，保留 ⌛ / ✅ 状态前缀
+// 标签组上显示的标题：正在操作时以 ⌛ 开头，否则以任务的 emoji 开头
+const displayTitle = (rec, busy) => `${busy ? BUSY : rec.emoji || DEFAULT_EMOJI} ${rec.title}`;
+
+// 设置组名和颜色，保留“正在操作”状态
 async function styleGroup(rec) {
   const group = await chrome.tabGroups.get(rec.groupId);
-  const prefix = group.title?.match(PREFIX_RE)?.[0] || '';
-  await chrome.tabGroups.update(rec.groupId, { title: prefix + rec.title, color: rec.color });
+  const busy = !!group.title?.startsWith(`${BUSY} `);
+  await chrome.tabGroups.update(rec.groupId, { title: displayTitle(rec, busy), color: rec.color });
 }
 
 // 请求所属的会话记录；没告知过的会话（旧版服务，或通告还没到）先建一条
@@ -108,6 +120,8 @@ async function register(info) {
       rec.groupId = old.groupId;
       rec.color = old.color;
       rec.title = old.title;
+      rec.task ??= old.task;
+      rec.emoji ??= old.emoji;
       delete all[old.id];
       adopted = true;
       break;
@@ -133,10 +147,18 @@ export async function sessionTitle(session) {
   return (await sessionRecord(session)).title;
 }
 
-// 该标签组属于哪个会话（不属于任何会话时返回 null）
-export async function sessionOfGroup(groupId) {
-  if (groupId == null || groupId < 0) return null;
-  return Object.values(await sessions()).find((r) => r.groupId === groupId)?.id ?? null;
+// agent 给出（或更换）任务名，例如 "✈️ 查机票"：开头的 emoji 单独保存，组名随之更新
+export async function setSessionTask(session, taskName) {
+  const rec = await sessionRecord(session);
+  const text = String(taskName ?? '').replace(/\s+/g, ' ').trim();
+  const m = text.match(EMOJI_RE);
+  const task = [...(m ? text.slice(m[0].length) : text)].slice(0, TASK_MAX).join('').trim();
+  if (!task && !m) return;
+  if (task) rec.task = task;
+  if (m) rec.emoji = m[1];
+  rec.title = makeTitle(rec, await sessions());
+  if (await groupExists(rec.groupId)) await styleGroup(rec).catch(() => {});
+  await save();
 }
 
 export async function groupOfSession(id) {
@@ -150,7 +172,7 @@ export async function liveSessions() {
   const out = [];
   for (const id of live) {
     const rec = all[id];
-    if (rec) out.push({ id, title: rec.title, color: rec.color || null, hasGroup: await groupExists(rec.groupId) });
+    if (rec) out.push({ id, title: displayTitle(rec, false), color: rec.color || null, hasGroup: await groupExists(rec.groupId) });
   }
   return out;
 }
@@ -193,22 +215,23 @@ async function newGroup(rec, tabId, windowId) {
   return rec.groupId;
 }
 
-// 在标签组标题前显示状态：⌛ 执行中、✅ 已完成，null 表示清除
-export async function setGroupPrefix(groupId, prefix) {
+// 标签组的“正在操作”状态：正在操作时标题以 ⌛ 开头，空闲时换回任务的 emoji（只处理会话自己的组）
+export async function setGroupBusy(groupId, busy) {
   if (groupId == null || groupId < 0) return;
+  const rec = Object.values(await sessions()).find((r) => r.groupId === groupId);
+  if (!rec) return;
   try {
     const group = await chrome.tabGroups.get(groupId);
-    const base = (group.title || '').replace(PREFIX_RE, '');
-    const title = prefix ? `${prefix} ${base}` : base;
+    const title = displayTitle(rec, busy);
     if (group.title !== title) await chrome.tabGroups.update(groupId, { title });
   } catch {
     // 组已不存在
   }
 }
 
-// 清除所有会话标签组的状态前缀
-export async function clearAllPrefixes() {
-  for (const rec of Object.values(await sessions())) await setGroupPrefix(rec.groupId, null);
+// 所有会话的标签组都标为空闲
+export async function clearAllBusy() {
+  for (const rec of Object.values(await sessions())) await setGroupBusy(rec.groupId, false);
 }
 
 export async function listGroupTabs(groupId) {
@@ -227,11 +250,23 @@ export async function getOrCreateContext(session, { createIfEmpty = false } = {}
     if (tabs.length) return { tabGroupId: groupId, availableTabs: tabs };
   }
   if (!createIfEmpty) return null;
-  const win = await chrome.windows.create({ url: 'about:blank', focused: true, type: 'normal' });
-  const tabId = win.tabs?.[0]?.id;
-  if (tabId == null) throw new Error('Failed to create window with new tab');
-  const newGroupId = await newGroup(await sessionRecord(session), tabId, win.id);
+  const { tabId, windowId } = await openFirstTab();
+  const newGroupId = await newGroup(await sessionRecord(session), tabId, windowId);
   return { tabGroupId: newGroupId, availableTabs: await listGroupTabs(newGroupId) };
+}
+
+// 新建组的第一个标签页：放在用户当前所在的普通窗口里（排在最后并切换过去，让用户看得到）；
+// 没有可用的窗口（全部关闭，或当前是无痕窗口）时才新开一个窗口
+async function openFirstTab() {
+  const win = await chrome.windows.getLastFocused({ windowTypes: ['normal'] }).catch(() => null);
+  if (win && !win.incognito) {
+    const tab = await chrome.tabs.create({ windowId: win.id, url: 'about:blank', active: true });
+    return { tabId: tab.id, windowId: win.id };
+  }
+  const created = await chrome.windows.create({ url: 'about:blank', focused: true, type: 'normal' });
+  const tabId = created.tabs?.[0]?.id;
+  if (tabId == null) throw new Error('Failed to create window with new tab');
+  return { tabId, windowId: created.id };
 }
 
 export async function createTabInGroup(session) {

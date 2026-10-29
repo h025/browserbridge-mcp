@@ -18,11 +18,10 @@ const scale = {
 };
 const point = (description) => ({ type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2, description });
 export const INSTRUCTIONS = `Browser automation for the user's own Chrome (their real logins and cookies) through the local Browser Bridge extension. No account sign-in is required.
-- Call tabs_context_mcp first (createIfEmpty: true if there is no group yet) to learn which tab IDs you may use. Only tabs in your own tab group can be controlled (each MCP session gets its own group). Prefer creating a new tab with tabs_create_mcp for a new task unless the user asks you to use an existing one.
+- Call tabs_context_mcp first (createIfEmpty: true if there is no group yet) to learn which tab IDs you may use, and pass taskName: a short name you summarize from the user's request, in their language, starting with one fitting emoji (e.g. "✈️ 查机票"). It titles your tab group. Only tabs in your own tab group can be controlled (each MCP session gets its own group). Prefer creating a new tab with tabs_create_mcp for a new task unless the user asks you to use an existing one.
 - Prefer element refs from read_page (filter: "interactive") or find over screen coordinates. When using coordinates, take a screenshot first; coordinates are pixels of the latest full-resolution screenshot.
 - Use browser_batch whenever you can predict two or more steps ahead (e.g. click a field, type, press Enter, screenshot).
-- Avoid triggering alert/confirm/prompt dialogs; if one appears it is dismissed automatically (alerts accepted) and reported in the tool result.
-- The user can click "Stop" on the page at any time. If a tool reports that, stop the browser task immediately and ask the user how to proceed.`;
+- Avoid triggering alert/confirm/prompt dialogs; if one appears it is dismissed automatically (alerts accepted) and reported in the tool result.`;
 export const TOOLS = [
   {
     name: 'tabs_context_mcp',
@@ -34,7 +33,12 @@ export const TOOLS = [
         createIfEmpty: {
           type: 'boolean',
           description:
-            'Creates a new MCP tab group if none exists: opens a new window with a new tab group containing an empty tab. If a group already exists, this parameter has no effect.',
+            'Creates a new MCP tab group if none exists: opens an empty tab in a new tab group in the user\'s current browser window. If a group already exists, this parameter has no effect.',
+        },
+        taskName: {
+          type: 'string',
+          description:
+            'A short name you summarize from the user\'s request, in the user\'s language, starting with one emoji that fits the task (e.g. "✈️ 查机票", "🛒 Compare laptop prices"). Keep it to a few words. It becomes your tab group\'s title ("<emoji> <client> · <task>") so the user can tell agents apart. Pass it whenever you start a new task; passing a different one renames the group.',
         },
       },
     },

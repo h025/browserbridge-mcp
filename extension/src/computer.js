@@ -62,7 +62,7 @@ async function resolveTarget(tabId, args, agent, action) {
 
 const coveredNote = (point) => (point.covered ? ` [note: the element's center is covered by ${point.covered}, so the action may have landed on that instead — take a screenshot to verify]` : '');
 
-// 鼠标操作前把页面上的光标移到目标处，操作期间隐藏边框和停止按钮（避免误点到按钮）
+// 鼠标操作前把页面上的光标移到目标处，操作期间隐藏边框
 async function withPointer(tabId, [x, y], fn) {
   await moveCursor(tabId, x, y);
   await hideIndicatorForTool(tabId, { cursor: false });

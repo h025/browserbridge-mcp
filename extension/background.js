@@ -1,4 +1,4 @@
-import { cleanupOnStartup, initActivity, isTabActive, releaseAll, releaseSession, requestStop } from './src/activity.js';
+import { cleanupOnStartup, initActivity, isTabActive, releaseAll, releaseSession } from './src/activity.js';
 import { Bridge, DEFAULT_PORT } from './src/bridge.js';
 import { initCdp } from './src/cdp.js';
 import { closeOffscreen, ensureOffscreen } from './src/gif.js';
@@ -47,10 +47,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         return { ok: true };
       case 'BB_INDICATOR_HEARTBEAT':
         return { active: sender.tab ? isTabActive(sender.tab.id) : false };
-      case 'BB_STOP':
-        // 只接受来自标签页内容脚本（页面上的“停止”按钮）的请求；只拦下该标签页所属的 agent
-        if (!sender.tab) return { ok: false };
-        return { ok: await requestStop(sender.tab.id) };
       case 'status':
         return { ...bridge.status(), defaultPort: DEFAULT_PORT };
       case 'setPort':

@@ -1,6 +1,6 @@
 // 工具实现与分发。每个工具返回 { output, base64Image?, imageFormat?, tabContext?, batchItems? }
 // 或抛出 ToolError；runTool 统一转成 { error, errorCode }，由 MCP 服务格式化后交给 Claude。
-import { consumeStopRequest, stopPending, toolFinished, toolStarted } from './activity.js';
+import { toolFinished, toolStarted } from './activity.js';
 import { AI_TREE_MAX_CHARS, aiEnabled, aiFind, getAiConfig } from './ai.js';
 import {
   clearConsoleMessages, clearNetworkRequests, enableConsoleTracking, enableNetworkTracking, ensureAttached, getConsoleMessages, getNetworkRequests,
@@ -10,10 +10,8 @@ import { computer } from './computer.js';
 import { gifCreator, recordAction } from './gif.js';
 import { beginPendingScope, clearPendingContexts, commitPendingContexts, loadImage, toViewport } from './screenshot.js';
 import {
-  assertSameDomain, assertTabInGroup, createTabInGroup, getGroupId, getOrCreateContext, listGroupTabs, sessionTitle, tabContext, waitForLoad,
+  assertSameDomain, assertTabInGroup, createTabInGroup, getGroupId, getOrCreateContext, listGroupTabs, sessionTitle, setSessionTask, tabContext, waitForLoad,
 } from './tabs.js';
-
-const STOP_MESSAGE = 'The user clicked "Stop" in the browser. Stop the browser task now and ask the user how they would like to proceed. Do not retry this action.';
 
 const JS_TIMEOUT_MS = 30_000;
 const JS_OUTPUT_LIMIT = 51_200;
@@ -128,7 +126,9 @@ function redactUrl(url) {
 }
 
 const TOOLS = {
-  async tabs_context_mcp({ createIfEmpty } = {}, { session }) {
+  async tabs_context_mcp({ createIfEmpty, taskName } = {}, { session }) {
+    // 任务名用于标签组标题，先记下来，新建的组直接用上
+    if (taskName) await setSessionTask(session, taskName);
     const ctx = await getOrCreateContext(session, { createIfEmpty: !!createIfEmpty });
     if (!ctx) return { output: `No "${await sessionTitle(session)}" tab group found. Use createIfEmpty: true to create a group.` };
     return {
@@ -383,10 +383,6 @@ const TOOLS = {
       for (let i = 0; i < actions.length; i++) {
         const { name, input } = actions[i];
         const label = typeof input.action === 'string' ? `${name}:${input.action}` : name;
-        if (stopPending(ctx.session)) {
-          consumeStopRequest(ctx.session);
-          throw new ToolError('user_stopped', `${done() ? `${done()}\n\n` : ''}${STOP_MESSAGE}`);
-        }
         if (ctx.isCancelled?.()) {
           throw new ToolError('batch_cancelled', `${done() ? `${done()}\n\n` : ''}Batch cancelled by the client before action ${i + 1} of ${actions.length}.`);
         }
@@ -447,7 +443,6 @@ export async function runTool(name, args = {}, opts = {}) {
     const version = chrome.runtime.getManifest().version;
     return { error: `Unknown tool: ${name}. The Browser Bridge extension (v${version}) may be older than the MCP server — ask the user to reload it in chrome://extensions.`, errorCode: 'unknown_tool' };
   }
-  if (consumeStopRequest(opts.session)) return { error: STOP_MESSAGE, errorCode: 'user_stopped' };
   let result;
   try {
     result = await runOne(name, args || {}, { isCancelled: opts.isCancelled, session: opts.session });

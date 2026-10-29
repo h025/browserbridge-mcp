@@ -5,15 +5,6 @@
   "extDescription": {
     "message": "通过本机 MCP 服务让 Claude Code 等客户端操作浏览器，无需登录任何账号。"
   },
-  "stopButton": {
-    "message": "停止"
-  },
-  "stopSent": {
-    "message": "已发送停止请求，下一步操作前会停下"
-  },
-  "stopFailed": {
-    "message": "停止请求没有送达，请在客户端里中断（Claude Code 中按 Esc）"
-  },
   "gifClick": {
     "message": "已点击"
   },

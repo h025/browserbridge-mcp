@@ -1,4 +1,4 @@
-// 页面上的活动指示器：彩色渐变边框与光晕、渐变光标、底部“停止”按钮（文字跟随浏览器语言）。
+// 页面上的活动指示器：沿屏幕四周缓慢旋转、带呼吸节奏的彩色光晕（外层宽光晕 + 贴边亮色光带），以及渐变光标。
 // 全部放在 closed shadow root 里，不影响页面样式，也不会出现在可访问性树中。
 (() => {
   if (window.__bbIndicator) return;
@@ -8,13 +8,11 @@
   let root = null;
   let layer = null; // 所有指示器元素的容器，截图时整体隐藏
   let border = null;
-  let stopBar = null;
   let cursor = null;
   let active = false;
   let hiddenForTool = false;
   let restoreTimer = null;
   let heartbeat = null;
-  const t = (key) => chrome.i18n.getMessage(key) || key;
 
   // 显示期间每 5 秒确认一次：扩展后台重启或已释放该标签页时自行隐藏；被页面移除时重新挂上
   function startHeartbeat() {
@@ -40,31 +38,25 @@
       style.textContent = `
         :host { all: initial !important; display: contents !important; }
         @keyframes bb-spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
-        @keyframes bb-breathe { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
-        .border { position: fixed; inset: 0; pointer-events: none; z-index: 2147483646; opacity: 0; transition: opacity .3s ease-in-out; }
-        .glow { position: absolute; inset: 0; animation: bb-breathe 2.4s ease-in-out infinite;
-          box-shadow: inset 7px 0 22px -6px rgba(59,130,246,.75), inset 0 7px 22px -6px rgba(139,92,246,.75),
-            inset -7px 0 22px -6px rgba(236,72,153,.75), inset 0 -7px 22px -6px rgba(245,158,11,.7); }
-        .ring { position: absolute; inset: 0; padding: 3px; overflow: hidden;
+        /* 呼吸：放大时光环往屏幕外推、变窄变淡，回到原大小时变宽变亮 */
+        @keyframes bb-breathe-aura { 0%, 100% { opacity: .6; transform: scale(1.06); } 50% { opacity: 1; transform: scale(1); } }
+        @keyframes bb-breathe-edge { 0%, 100% { opacity: .75; } 50% { opacity: 1; } }
+        .border { position: fixed; inset: 0; pointer-events: none; z-index: 2147483646; opacity: 0; transition: opacity .4s ease-in-out; }
+        /* 外层光晕：比屏幕大一圈的彩色光环整体模糊，一半在屏幕外，屏幕内是柔和、圆角的宽光晕 */
+        .aura { position: absolute; inset: -48px; filter: blur(26px); animation: bb-breathe-aura 3.2s ease-in-out infinite; }
+        .aura .ring { --t: 100px; }
+        /* 贴边亮色光带：细光环轻微模糊，勾出清楚的边缘 */
+        .edge { position: absolute; inset: 0; filter: blur(2px); animation: bb-breathe-edge 3.2s ease-in-out infinite; }
+        .edge .ring { --t: 5px; }
+        /* 光环：只保留四周宽 --t 的一圈，里面是旋转的彩色圆盘（比对角线还大，转起来四边始终被覆盖） */
+        .ring { position: absolute; inset: 0; padding: var(--t); overflow: hidden;
           -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
-        .ring::before { content: ""; position: absolute; top: 50%; left: 50%; width: 150vmax; height: 150vmax;
-          transform: translate(-50%, -50%); animation: bb-spin 6s linear infinite;
-          background: conic-gradient(#3B82F6, #8B5CF6, #EC4899, #F59E0B, #10B981, #3B82F6); }
-        @media (prefers-reduced-motion: reduce) { .glow, .ring::before { animation: none; } }
+        .ring::before { content: ""; position: absolute; top: 50%; left: 50%; width: 170vmax; height: 170vmax;
+          transform: translate(-50%, -50%); animation: bb-spin 10s linear infinite;
+          background: conic-gradient(#3B82F6, #8B5CF6, #EC4899, #F59E0B, #22D3EE, #3B82F6); }
+        @media (prefers-reduced-motion: reduce) { .aura, .edge, .ring::before { animation: none; } }
         .cursor { position: fixed; top: 0; left: 0; pointer-events: none; z-index: 2147483646; will-change: transform;
           transition: transform 180ms cubic-bezier(.2, 0, 0, 1); filter: drop-shadow(0 1px 3px rgba(139,92,246,.8)); }
-        .stop-bar { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 2147483647; pointer-events: none; }
-        .stop { pointer-events: auto; display: inline-flex; align-items: center; gap: 9px; padding: 9px 18px 9px 14px; border-radius: 999px;
-          color: #F9FAFB; border: 1.5px solid transparent; cursor: pointer; user-select: none;
-          background: linear-gradient(#111827, #111827) padding-box, linear-gradient(90deg, #3B82F6, #8B5CF6, #EC4899, #F59E0B) border-box;
-          font: 600 13.5px -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif; letter-spacing: .01em;
-          box-shadow: 0 10px 30px rgba(139,92,246,.35), 0 2px 8px rgba(17,24,39,.35);
-          transform: translateY(100px); opacity: 0; transition: all .3s cubic-bezier(.4, 0, .2, 1); }
-        .stop:hover { background: linear-gradient(#1F2937, #1F2937) padding-box, linear-gradient(90deg, #3B82F6, #8B5CF6, #EC4899, #F59E0B) border-box; }
-        .stop .dot { width: 10px; height: 10px; border-radius: 3px; background: linear-gradient(135deg, #3B82F6, #EC4899); }
-        .toast { position: fixed; bottom: 72px; left: 50%; transform: translateX(-50%); z-index: 2147483647; pointer-events: none;
-          padding: 8px 14px; border-radius: 999px; background: #111827; color: #F9FAFB; box-shadow: 0 6px 20px rgba(139,92,246,.3);
-          font: 500 13px -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; transition: opacity .2s; }
       `;
       root.appendChild(style);
       layer = document.createElement('div');
@@ -87,38 +79,6 @@
     return wrap;
   }
 
-  function buildStopBar() {
-    const bar = document.createElement('div');
-    bar.className = 'stop-bar';
-    const btn = document.createElement('button');
-    btn.className = 'stop';
-    btn.innerHTML = '<span class="dot"></span><span></span>';
-    btn.lastChild.textContent = t('stopButton');
-    btn.addEventListener('click', async (e) => {
-      // Claude 自己的点击也是可信事件，但点击期间按钮已隐藏，这里只会是用户点击
-      if (!e.isTrusted) return;
-      try {
-        const res = await chrome.runtime.sendMessage({ type: 'BB_STOP' });
-        toast(t(res?.ok ? 'stopSent' : 'stopFailed'));
-      } catch {
-        toast(t('stopFailed'));
-      }
-    });
-    bar.appendChild(btn);
-    return bar;
-  }
-
-  function toast(text) {
-    const el = document.createElement('div');
-    el.className = 'toast';
-    el.textContent = text;
-    ensureRoot().appendChild(el);
-    setTimeout(() => {
-      el.style.opacity = '0';
-      setTimeout(() => el.remove(), 250);
-    }, 2500);
-  }
-
   function show() {
     active = true;
     startHeartbeat();
@@ -126,12 +86,8 @@
     if (!border) {
       border = document.createElement('div');
       border.className = 'border';
-      border.innerHTML = '<div class="glow"></div><div class="ring"></div>';
+      border.innerHTML = '<div class="aura"><div class="ring"></div></div><div class="edge"><div class="ring"></div></div>';
       r.appendChild(border);
-    }
-    if (!stopBar) {
-      stopBar = buildStopBar();
-      r.appendChild(stopBar);
     }
     if (!cursor) {
       cursor = buildCursor(Math.round(innerWidth / 2), Math.round(innerHeight / 2));
@@ -141,9 +97,6 @@
     requestAnimationFrame(() => {
       if (!active) return;
       border.style.opacity = '1';
-      const btn = stopBar.querySelector('.stop');
-      btn.style.transform = 'translateY(0)';
-      btn.style.opacity = '1';
     });
   }
 
@@ -154,24 +107,17 @@
     clearInterval(heartbeat);
     heartbeat = null;
     if (border) border.style.opacity = '0';
-    const btn = stopBar?.querySelector('.stop');
-    if (btn) {
-      btn.style.transform = 'translateY(100px)';
-      btn.style.opacity = '0';
-    }
     setTimeout(() => {
       if (active) return;
-      for (const el of [border, stopBar, cursor]) el?.remove();
-      border = stopBar = cursor = null;
+      for (const el of [border, cursor]) el?.remove();
+      border = cursor = null;
     }, 300);
   }
 
-  // 截图时整体隐藏（包括提示气泡）；点击时只隐藏边框和停止按钮，保留光标
+  // 截图时整体隐藏；点击时只隐藏边框，保留光标
   function applyVisibility(hideAll = false) {
     if (layer) layer.style.display = hiddenForTool && hideAll ? 'none' : '';
-    const display = hiddenForTool ? 'none' : '';
-    if (border) border.style.display = display;
-    if (stopBar) stopBar.style.display = display;
+    if (border) border.style.display = hiddenForTool ? 'none' : '';
   }
 
   function moveCursor(x, y) {

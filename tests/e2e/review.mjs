@@ -79,7 +79,9 @@ try {
   await browser.send('Target.closeTarget', { targetId: sw.targetId });
   await sleep(8000);
   const after = await user.edgeColor();
-  expect(before[0] - before[2] > 40 && after[0] - after[2] < 15, 'Service Worker 重启后页面指示器自行隐藏');
+  // 光晕颜色在旋转，按饱和度判断：显示时边缘是彩色，隐藏后是白色
+  const saturation = (rgb) => Math.max(...rgb) - Math.min(...rgb);
+  expect(saturation(before) > 60 && saturation(after) < 15, 'Service Worker 重启后页面指示器自行隐藏');
   expect(!(await call('read_page', { tabId, filter: 'interactive', max_chars: 100 }, { quiet: true })).isError, 'Service Worker 重启后工具照常可用');
   browser.close();
   user.close();

@@ -1,6 +1,6 @@
-// 多个 agent 同时使用：每个会话有自己的标签组，互不干扰；停止只拦下自己；
+// 多个 agent 同时使用：每个会话有自己的标签组，互不干扰；
 // agent 退出后组保留，同一客户端在同一目录重启时接回原来的组；hub 换人后照常工作
-import { EXT_ID, openPage, setup, sleep, userPage } from './harness.mjs';
+import { EXT_ID, openPage, setup, sleep } from './harness.mjs';
 
 const t = await setup();
 const { callWith, expect } = t;
@@ -23,20 +23,20 @@ try {
   expect(/not in the ".*" tab group/.test((await callWith(a, 'navigate', { tabId: tabB, url: 'example.com' }, { expectError: true })).t), '不能操作别的 agent 的标签页');
 
   const ext = await openPage(`chrome-extension://${EXT_ID}/options.html`);
-  const groupInfo = (id) => ext.evaluate(`chrome.tabGroups.get(${id}).then((g) => ({ title: g.title.replace(/^(⌛|✅) /, ''), color: g.color }), () => null)`);
+  const groupInfo = (id) => ext.evaluate(`chrome.tabGroups.get(${id}).then((g) => ({ title: g.title, color: g.color, windowId: g.windowId }), () => null)`);
   const ga = await groupInfo(ca.tabGroupId);
   const gb = await groupInfo(cb.tabGroupId);
-  expect(ga?.title === 'e2e · e2e' && gb?.title === 'second-agent · e2e' && ga.color !== gb.color, `组名按客户端和目录区分、颜色不同（${ga?.title} / ${gb?.title}）`);
+  // 组名开头是 emoji（正在操作时是 ⌛），后面是客户端名，没有任务名时只有客户端名
+  const base = (title) => title?.replace(/^\S+ /, '');
+  expect(base(ga?.title) === 'e2e' && base(gb?.title) === 'second-agent' && ga.color !== gb.color, `没有任务名时组名是客户端名、颜色不同（${ga?.title} / ${gb?.title}）`);
+  expect(ga.windowId === gb.windowId, '新建的标签组都在当前窗口里，不另开窗口');
 
-  // 用户在 A 的页面上点「停止」：只拦下 A
-  const vp = JSON.parse((await callWith(a, 'javascript_tool', { action: 'javascript_exec', tabId: tabA, text: 'JSON.stringify({ w: innerWidth, h: innerHeight })' }, { quiet: true })).t);
-  const user = await userPage('agent-a');
-  for (const type of ['mouseMoved', 'mousePressed', 'mouseReleased']) {
-    await user.send('Input.dispatchMouseEvent', { type, x: vp.w / 2, y: vp.h - 36, button: type === 'mouseMoved' ? 'none' : 'left', buttons: type === 'mousePressed' ? 1 : 0, clickCount: 1 });
-  }
-  await sleep(500);
-  expect(!(await callWith(b, 'computer', { tabId: tabB, action: 'wait', duration: 0.1 }, { quiet: true })).isError, '另一个 agent 不受停止影响');
-  expect(/clicked "Stop"/.test((await callWith(a, 'computer', { tabId: tabA, action: 'wait', duration: 0.1 }, { expectError: true })).t), '点了停止的那个 agent 被拦下');
+  // agent 给出任务名（emoji + 名称）后组名随之更新；刚操作过，标题开头是 ⌛；弹窗里显示任务的 emoji
+  await callWith(a, 'tabs_context_mcp', { taskName: '✈️ 查机票' }, { quiet: true });
+  const named = await groupInfo(ca.tabGroupId);
+  expect(named?.title === '⌛ e2e · 查机票', `组名为 emoji + 客户端 + 任务名，正在操作时 emoji 换成 ⌛（${named?.title}）`);
+  const listed = await ext.evaluate(`chrome.runtime.sendMessage({ type: 'sessions' }).then((r) => r.sessions.map((s) => s.title).join(' / '))`);
+  expect(listed.includes('✈️ e2e · 查机票'), `弹窗里显示任务的 emoji（${listed}）`);
 
   // B 退出：组保留；同一客户端在同一目录重启后接回原来的组
   await b.close();

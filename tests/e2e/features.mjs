@@ -1,4 +1,4 @@
-// 页面指示器 / 停止按钮 / upload_image / gif_creator / 空闲释放
+// 页面指示器 / upload_image / gif_creator / 空闲释放
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { HERE, setup, sleep, userPage } from './harness.mjs';
@@ -14,22 +14,14 @@ try {
   await sleep(500);
   expect(isColorful(await user.edgeColor()), '执行工具时页面显示彩色渐变边框');
 
-  // Claude 点到停止按钮所在位置不会触发停止（点击期间按钮隐藏）
   const vp = JSON.parse(await js(tabId, '({ w: innerWidth, h: innerHeight })'));
   const shot = await call('computer', { tabId, action: 'screenshot' });
   const [sw, sh] = shot.t.match(/\((\d+)x(\d+), jpeg\)/).slice(1).map(Number);
   const toShot = (x, y) => [Math.round(x * sw / vp.w), Math.round(y * sh / vp.h)];
-  const stop = { x: vp.w / 2, y: vp.h - 36 };
-  await call('computer', { tabId, action: 'left_click', coordinate: toShot(stop.x, stop.y) });
-  expect(!(await call('computer', { tabId, action: 'wait', duration: 0.2 })).isError, 'Claude 点击停止按钮的位置不会触发停止');
 
-  // 用户点击页面上的「停止」：下一次调用被拒绝，之后恢复
-  for (const type of ['mouseMoved', 'mousePressed', 'mouseReleased']) {
-    await user.send('Input.dispatchMouseEvent', { type, x: stop.x, y: stop.y, button: type === 'mouseMoved' ? 'none' : 'left', buttons: type === 'mousePressed' ? 1 : 0, clickCount: 1 });
-  }
-  await sleep(500);
-  expect(/clicked "Stop"/.test((await call('computer', { tabId, action: 'screenshot' }, { expectError: true })).t), '用户点击停止后，下一次调用被拒绝');
-  expect(!(await call('find', { tabId, query: '提交' })).isError, '停止只生效一次，之后恢复正常');
+  // 指示器不挡页面：原来停止按钮所在的底部中间，点到的是页面自己的元素
+  const atBottom = await user.evaluate(`document.elementFromPoint(${vp.w / 2}, ${vp.h - 36})?.closest('[data-bb-indicator]') ? 'indicator' : 'page'`);
+  expect(atBottom === 'page', '页面上没有停止按钮，指示器不拦截点击');
 
   // upload_image：截图 → 文件输入框 / 拖放区
   const imageId = (await call('computer', { tabId, action: 'screenshot' })).t.match(/ID: (ss_\w+)/)[1];

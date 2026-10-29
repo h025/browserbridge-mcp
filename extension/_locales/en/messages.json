@@ -5,15 +5,6 @@
   "extDescription": {
     "message": "Lets Claude Code and other MCP clients drive this browser through a local MCP server. No account sign-in needed."
   },
-  "stopButton": {
-    "message": "Stop"
-  },
-  "stopSent": {
-    "message": "Stop sent; the agent halts before its next step."
-  },
-  "stopFailed": {
-    "message": "The stop request did not get through. Interrupt the agent in your client instead (Esc in Claude Code)."
-  },
   "gifClick": {
     "message": "Clicked"
   },

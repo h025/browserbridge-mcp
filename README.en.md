@@ -58,7 +58,7 @@ Load the `extension/` folder with "Load unpacked". After restarting the client, 
 
 | Tool | Purpose |
 | --- | --- |
-| `tabs_context_mcp` | List the controllable tabs in the group; `createIfEmpty: true` opens a window with a new group |
+| `tabs_context_mcp` | List the controllable tabs in the group; `createIfEmpty: true` opens a tab in a new group in the current window |
 | `tabs_create_mcp` / `tabs_close_mcp` | Open (in the background) / close a tab in the group |
 | `navigate` | Open a URL, go back or forward; a "Leave site?" prompt keeps the page unless `force: true` |
 | `computer` | Screenshot, click, double/triple/right click, hover, drag, type, keys, scroll, `scroll_to`, `zoom`, wait |
@@ -79,8 +79,8 @@ Highlights:
 - **Screenshots and coordinates**: screenshots are scaled to the vision token budget (28 px per token, at most 1568 on the long side and in total). Coordinates always refer to the latest full-size screenshot; `scale` only shrinks the returned image.
 - **Background tabs**: focus emulation lets background tabs be captured, clicked and typed into without bringing them to the front.
 - **Keyboard**: `type` sends real key events per character (text not on the keyboard, such as CJK or emoji, is inserted); `key` supports chords and, on macOS, the system editing commands needed for `cmd+a` / `cmd+c` / `cmd+v`.
-- **Page indicator**: while a tool runs, the page gets a colorful gradient border and glow and a gradient cursor moves to each click; everything is hidden in screenshots. A **Stop** button at the bottom makes the agent's next call fail with a request to stop and ask you.
-- **Idle release**: the debugger detaches after 20 seconds without activity; the tab group title shows ⌛ while working and ✅ when done.
+- **Page indicator**: while a tool runs, a colorful glow slowly circles the page edges with a breathing rhythm, and a gradient cursor moves to each click; everything is hidden in screenshots.
+- **Idle release**: the debugger detaches after 20 seconds without activity; while the agent is working, the emoji at the start of the tab group title turns into ⌛.
 - **Same-site check**: clicks, typing, uploads and JS are refused if the page moved to another site meanwhile.
 - **Dialogs**: alerts raised while a tool runs are accepted and confirm/prompt dismissed automatically, and the result says so; dialogs that show up while idle are left for you.
 - **Privacy**: password, verification-code and card fields are masked in the tree and form results; `javascript_tool` results hide tokens, cookies and JWTs.
@@ -93,7 +93,7 @@ Other notes:
 
 ## Interface language
 
-The popup, settings page, the on-page Stop button and the GIF action labels follow the browser's UI language: Chinese and English for now (other languages show English). Strings live in `extension/_locales/`. The `browserbridge-mcp` command line and messages such as "extension not connected" follow the system language (`LANG`). Tool descriptions and results for the model are always English.
+The popup, settings page and the GIF action labels follow the browser's UI language: Chinese and English for now (other languages show English). Strings live in `extension/_locales/`. The `browserbridge-mcp` command line and messages such as "extension not connected" follow the system language (`LANG`). Tool descriptions and results for the model are always English.
 
 ## AI element search (optional)
 
@@ -113,8 +113,7 @@ With it, `find` sends the page's accessibility tree (sensitive fields masked) an
 
 Each MCP server process (one per agent session) gets its own tab group and can neither see nor control other agents' tabs:
 
-- **Group name**: client · project folder, e.g. "Claude Code · my-app" or "Codex · api", numbered when names clash; every group gets a different color. Desktop clients have no project folder, so only the client name is shown.
-- **Stop**: the on-page Stop button stops only the agent that owns that tab.
+- **Group name**: "<emoji> <client> · <task>", e.g. "✈️ Claude Code · 查机票" or "🛒 Codex · Compare prices". The agent summarizes the task name and emoji from your request and renames the group when the task changes; before that the group shows "🤖 <client>". Clashing names get a number, and every group gets a different color.
 - **Exit and restart**: when an agent exits, its group stays (tabs are not closed). When the same client restarts in the same folder (for example `/mcp` reconnect in Claude Code), it gets its old group back and earlier tab IDs keep working.
 - **Upgrading**: the shared "Browser Bridge" / "Claude Bridge" group from before 0.7.0 is taken over by the first agent that needs a group. Requests from older MCP servers (without session info) share one group named "Browser Bridge".
 - The WebSocket server listens on `127.0.0.1` only and checks `Origin`: web pages cannot connect, and only this extension (its ID is pinned by the manifest `key`: `oajlnlbllfohnlkecpodgediipicjajd`) is accepted. Use `BROWSER_BRIDGE_EXTENSION_IDS` (comma separated) to allow other IDs. Other local programs can still connect, so use it on machines you trust.
