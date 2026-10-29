@@ -59,9 +59,12 @@
           transform: translate(-50%, -50%); animation: bb-spin 6s linear infinite;
           background: conic-gradient(#3B82F6, #8B5CF6 18%, rgba(139,92,246,.35) 30%, #EC4899 44%, #F59E0B 58%,
             rgba(245,158,11,.35) 70%, #22D3EE 84%, #3B82F6); }
-        @media (prefers-reduced-motion: reduce) { .aura, .edge, .ring::before { animation: none; } }
+        @media (prefers-reduced-motion: reduce) { .aura, .edge, .ring::before, .cursor svg { animation: none; } }
         .cursor { position: fixed; top: 0; left: 0; pointer-events: none; z-index: 2147483646; will-change: transform;
-          transition: transform 180ms cubic-bezier(.2, 0, 0, 1); filter: drop-shadow(0 1px 3px rgba(139,92,246,.8)); }
+          transition: transform 180ms cubic-bezier(.2, 0, 0, 1); filter: drop-shadow(0 2px 4px rgba(139,92,246,.45)); }
+        /* 光标随光晕的呼吸节奏轻轻放大缩小（以尖端为中心，不影响指向的位置） */
+        @keyframes bb-cursor-bob { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+        .cursor svg { transform-origin: 0 0; animation: bb-cursor-bob 3.2s ease-in-out infinite; }
       `;
       root.appendChild(style);
       layer = document.createElement('div');
@@ -76,11 +79,16 @@
     const wrap = document.createElement('div');
     wrap.className = 'cursor';
     wrap.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-    wrap.innerHTML = `<svg width="20" height="26" viewBox="0 0 20 26" style="overflow:visible">
+    // 圆润的箭头（尖端、底角、右角都是圆的）+ 柔和渐变 + 白色粗描边 + 尖端附近一点高光；尖端对准 (0, 0)
+    wrap.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" style="overflow:visible">
       <defs><linearGradient id="bb-cursor-grad" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stop-color="#3B82F6"/><stop offset=".5" stop-color="#8B5CF6"/><stop offset="1" stop-color="#EC4899"/>
+        <stop offset="0" stop-color="#60A5FA"/><stop offset=".5" stop-color="#A78BFA"/><stop offset="1" stop-color="#F472B6"/>
       </linearGradient></defs>
-      <path d="M0 0 L0 18 L4.5 14 L7.5 21.5 L11 20 L8 13 L14 13 Z" fill="url(#bb-cursor-grad)" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+      <g transform="translate(-1.6 -2.4)">
+        <path d="M3.1 2.6C2 2.1.9 3.1 1.3 4.2l6.4 18c.4 1.2 2.1 1.2 2.6.1l2.6-6.3c.2-.5.6-.9 1.1-1.1l6.3-2.6c1.1-.5 1.1-2.2-.1-2.6Z"
+          fill="url(#bb-cursor-grad)" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"/>
+        <ellipse cx="5.6" cy="7.6" rx="1.4" ry="2.4" transform="rotate(-24 5.6 7.6)" fill="#fff" opacity=".55"/>
+      </g></svg>`;
     return wrap;
   }
 
