@@ -10,7 +10,7 @@ Claude Code ──stdio(MCP)──> mcp-server（Node，本机）──WebSocket
 
 - 不连接任何云端服务，扩展只与本机 `127.0.0.1` 通信
 - 使用你浏览器里现有的登录状态
-- 多个 Claude Code 会话可同时使用：第一个 MCP 进程做 hub，其余自动作为 peer 经 hub 转发；hub 退出后自动接任
+- 多个 agent 可同时使用，**每个 agent 有自己的标签组，互不干扰**：第一个 MCP 进程做 hub，其余自动作为 peer 经 hub 转发；hub 退出后自动接任
 
 ## 安装
 
@@ -40,7 +40,7 @@ claude mcp add browser-bridge -s user -- node "$(pwd)/src/cli.js"
 
 | 工具 | 作用 |
 | --- | --- |
-| `tabs_context_mcp` | 列出标签组里可操作的标签页；`createIfEmpty: true` 时新开窗口并建组 |
+| `tabs_context_mcp` | 列出本 agent 标签组里的标签页；`createIfEmpty: true` 时新开窗口并建组 |
 | `tabs_create_mcp` / `tabs_close_mcp` | 在组内新建（后台）/ 关闭标签页 |
 | `navigate` | 打开 URL、后退、前进；遇到「离开此网站？」默认不离开，`force: true` 时放弃修改 |
 | `computer` | 截图、点击、双击、三击、右键、悬停、拖拽、输入、按键、滚动、`scroll_to`、`zoom`、等待 |
@@ -75,7 +75,7 @@ claude mcp add browser-bridge -s user -- node "$(pwd)/src/cli.js"
 其他说明：
 
 - `find`：可选接入自己的 AI 接口理解自然语言（见下文「AI 元素查找」），未配置时用本地关键词匹配。
-- 不需要账号，也没有网站权限弹窗；所有 Claude Code 会话共用一个紫色标签组，组名为 “Browser Bridge”（0.6.0 及以前的 “Claude Bridge” 组会自动改名）。
+- 不需要账号，也没有网站权限弹窗。
 - 页面底部有「停止」按钮：点击后 Claude 的下一次调用会被拒绝并要求它停下来询问你。
 - `gif_creator` 的 `download: true` 由 MCP 服务把 GIF 写到本地磁盘并返回路径。
 - 对话框处理：Claude 执行操作期间页面弹出的 alert 自动确认、confirm/prompt 自动取消（否则页面会被阻塞），并在结果中提示；Claude 空闲时出现的对话框（可能是你自己的操作）留给你处理，Claude 下次操作该标签页时若仍未关闭才自动处理。
@@ -116,7 +116,16 @@ MCP 服务是标准 stdio 服务，Claude 桌面版、Codex、Cursor、VS Code �
 
 ## 权限与安全
 
-- **Claude 只能操作 “Browser Bridge” 标签组里的标签页。** 想让它操作已有页面，把标签页拖进该组，或点扩展图标里的「交出当前标签页」。
+- **每个 agent 只能操作自己标签组里的标签页。** 想让它操作已有页面，把标签页拖进它的组，或点扩展图标，选好 agent 后点「交出」。
+
+## 多个 agent 同时使用
+
+每个 MCP 服务进程（也就是每个 agent 会话）有自己的标签组，看不到、也操作不了别的 agent 的标签页：
+
+- **组名**：客户端名 · 项目目录，例如「Claude Code · my-app」「Codex · api」；重名时加序号，每个组颜色不同。桌面客户端没有项目目录，只显示客户端名。
+- **停止**：页面上的「停止」只拦下这个标签页所属的 agent，其他 agent 照常工作。
+- **退出与重启**：agent 退出后它的标签组保留（标签页不关闭）；同一客户端在同一目录重新启动（例如 Claude Code 里 `/mcp` 重连）时接回原来的组，之前的标签页 ID 仍然有效。
+- **升级**：0.7.0 之前共用的 “Browser Bridge” / “Claude Bridge” 组由第一个需要标签组的 agent 接手。旧版 MCP 服务（不带会话信息）的请求共用一个名为 “Browser Bridge” 的组。
 - WebSocket 服务只监听 `127.0.0.1`，并校验 `Origin`：普通网页无法连接；扩展端只接受本扩展（manifest 中的 `key` 固定了扩展 ID `oajlnlbllfohnlkecpodgediipicjajd`），其他扩展无法冒充来截获 Claude 输入的内容。如需改用其他扩展 ID，设置环境变量 `BROWSER_BRIDGE_EXTENSION_IDS`（逗号分隔）。本机的其他程序仍可连接，请只在可信的电脑上使用。
 - **本机文件访问受限**：`file_upload` 读取、`gif_creator` 保存的文件必须位于 Claude Code 的工作目录、`~/Downloads`、`~/Desktop`、`~/Documents`、`~/Pictures` 之内，且不能是隐藏文件或在隐藏目录中（如 `~/.ssh`、`.env`），防止网页诱导 Claude 把敏感文件上传出去。用环境变量 `BROWSER_BRIDGE_FILE_DIRS`（以 `:` 分隔）自定义允许的目录。
 - Claude 用的是你真实的登录状态，涉及付款、删除、发消息等操作时请留意它在做什么。
@@ -126,7 +135,6 @@ MCP 服务是标准 stdio 服务，Claude 桌面版、Codex、Cursor、VS Code �
 - 操作页面时扩展会附加调试器，Chrome 顶部会出现「已开始调试此浏览器」提示条，这是 Chrome 的安全机制；空闲 20 秒后会自动断开。手动关掉提示条也会断开调试，下次操作时自动重新附加。
 - 控制台日志和网络请求在第一次调用 `read_console_messages` / `read_network_requests` 时才开始记录（避免一附加调试器就开启这些调试功能、被网站的反自动化检测识别）；控制台会补上页面此前已输出的消息，网络请求只记录开启之后的。跳转到其他域名时清空；调试器空闲断开期间产生的网络请求不会被记录。
 - 输入文本默认模拟真人打字节奏（字符间随机间隔，长文本自动加快），可在扩展「设置」中关闭。
-- 多个 Claude Code 会话共用一个标签组，页面上的「停止」只会拒绝下一次调用（不论来自哪个会话）。
 - 多个 Chrome（或多个 Chrome 配置文件）同时装了扩展时，请求只会发给最后连上服务的那一个，请只在一个配置文件中启用扩展。
 - `read_page` / `find` 只覆盖主文档（含 open shadow DOM），不进入 iframe 内部。
 - 不能操作 `chrome://`、扩展页面和 Chrome 应用商店页面。
@@ -147,7 +155,7 @@ extension/
   src/input.js           鼠标、键盘事件派发
   src/keys.js            US 键位表与 macOS 编辑命令
   src/screenshot.js      截图、token 预算缩放与坐标换算
-  src/tabs.js            “Browser Bridge” 标签组管理、域名校验
+  src/tabs.js            按 agent 会话管理标签组、域名校验
   src/activity.js        活动跟踪：页面指示器、空闲释放、停止请求、标签组状态前缀
   src/gif.js             GIF 录制与导出
   src/page-agent.js      内容脚本：可访问性树、ref、表单、上传/拖放、正文提取、关键词查找

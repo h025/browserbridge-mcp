@@ -93,8 +93,14 @@
   "reconnect": {
     "message": "重连"
   },
+  "shareTo": {
+    "message": "把当前标签页交给"
+  },
+  "noAgents": {
+    "message": "没有已连接的 agent"
+  },
   "shareTab": {
-    "message": "交出当前标签页"
+    "message": "交出"
   },
   "shareDone": {
     "message": "已交出（tabId $ID$）",
@@ -113,7 +119,7 @@
     }
   },
   "groupHint": {
-    "message": "只能操作 “Browser Bridge” 标签组里的标签页，也可以直接把标签页拖进该组。"
+    "message": "每个 agent 只能操作自己的标签组，也可以把标签页直接拖进某个 agent 的组。"
   },
   "findModeLoading": {
     "message": "元素查找：…"

@@ -88,8 +88,9 @@ export async function setup({ windowSize = '1280,860', dpr, lang = process.env.B
 
   const server = process.env.SERVER_CMD ? JSON.parse(process.env.SERVER_CMD) : { command: 'node', args: [join(ROOT, 'mcp-server/src/cli.js')] };
   const clients = [];
-  const connect = async () => {
-    const c = new Client({ name: 'e2e', version: '0' });
+  // 每个客户端启动一个 MCP 服务进程，相当于一个独立的 agent；name 是 MCP 客户端名称（决定标签组名）
+  const connect = async (name = 'e2e') => {
+    const c = new Client({ name, version: '0' });
     await c.connect(new StdioClientTransport({ ...server, cwd: HERE, env: { ...process.env, BROWSER_BRIDGE_PORT: String(TEST_PORT) }, stderr: 'ignore' }));
     clients.push(c);
     return c;

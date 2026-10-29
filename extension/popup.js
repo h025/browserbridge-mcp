@@ -23,9 +23,25 @@ $('reconnect').onclick = async () => {
   setTimeout(refresh, 300);
 };
 
+// 已连接的 agent（每个有自己的标签组），选择把当前标签页交给谁
+async function showSessions() {
+  const { sessions = [] } = await chrome.runtime.sendMessage({ type: 'sessions' });
+  const select = $('target');
+  const ids = sessions.map((s) => s.id).join();
+  if (select.dataset.ids !== ids) {
+    const keep = select.value;
+    select.replaceChildren(...sessions.map((s) => new Option(s.title, s.id)));
+    if (sessions.some((s) => s.id === keep)) select.value = keep;
+    select.dataset.ids = ids;
+  }
+  select.disabled = !sessions.length;
+  $('share').disabled = !sessions.length;
+  if (!sessions.length) select.replaceChildren(new Option(t('noAgents'), ''));
+}
+
 $('share').onclick = async () => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  const res = await chrome.runtime.sendMessage({ type: 'shareTab', tabId: tab.id });
+  const res = await chrome.runtime.sendMessage({ type: 'shareTab', tabId: tab.id, session: $('target').value });
   $('share').textContent = res.error ? t('shareFailed', [res.error]) : t('shareDone', [String(res.tabId)]);
 };
 
@@ -38,4 +54,8 @@ async function showAiMode() {
 
 refresh();
 showAiMode();
-setInterval(refresh, 1000);
+showSessions();
+setInterval(() => {
+  refresh();
+  showSessions();
+}, 1000);

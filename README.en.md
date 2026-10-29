@@ -10,7 +10,7 @@ MCP client ──stdio(MCP)──> mcp-server (Node, local) ──WebSocket 127.
 
 - No cloud service; the extension only talks to `127.0.0.1`
 - Uses the logins already in your browser
-- Several Claude Code sessions can share it: the first MCP process acts as the hub, the others relay through it, and a new hub takes over when it exits
+- Several agents can use it at once, **each with its own tab group, without getting in each other's way**: the first MCP process acts as the hub, the others relay through it, and a new hub takes over when it exits
 
 ## Install
 
@@ -86,7 +86,7 @@ Highlights:
 Other notes:
 
 - `find` can use your own OpenAI-compatible endpoint (see below) to understand natural language; without it, local keyword matching is used.
-- No account and no site-permission prompts. All sessions share one purple tab group named "Browser Bridge".
+- No account and no site-permission prompts.
 - `gif_creator` with `download: true` writes the GIF to disk through the MCP server and returns the path.
 
 ## Interface language
@@ -105,7 +105,16 @@ With it, `find` sends the page's accessibility tree (sensitive fields masked) an
 
 ## Security
 
-- **Only tabs in the "Browser Bridge" tab group can be controlled.** Drag a tab into the group, or use "Hand over this tab" in the popup.
+- **Each agent can only control the tabs in its own tab group.** Drag a tab into an agent's group, or pick the agent in the popup and click "Hand over".
+
+## Several agents at once
+
+Each MCP server process (one per agent session) gets its own tab group and can neither see nor control other agents' tabs:
+
+- **Group name**: client · project folder, e.g. "Claude Code · my-app" or "Codex · api", numbered when names clash; every group gets a different color. Desktop clients have no project folder, so only the client name is shown.
+- **Stop**: the on-page Stop button stops only the agent that owns that tab.
+- **Exit and restart**: when an agent exits, its group stays (tabs are not closed). When the same client restarts in the same folder (for example `/mcp` reconnect in Claude Code), it gets its old group back and earlier tab IDs keep working.
+- **Upgrading**: the shared "Browser Bridge" / "Claude Bridge" group from before 0.7.0 is taken over by the first agent that needs a group. Requests from older MCP servers (without session info) share one group named "Browser Bridge".
 - The WebSocket server listens on `127.0.0.1` only and checks `Origin`: web pages cannot connect, and only this extension (its ID is pinned by the manifest `key`: `oajlnlbllfohnlkecpodgediipicjajd`) is accepted. Use `BROWSER_BRIDGE_EXTENSION_IDS` (comma separated) to allow other IDs. Other local programs can still connect, so use it on machines you trust.
 - **Local file access is limited**: files read by `file_upload` or written by `gif_creator` must be inside the client's working directory, `~/Downloads`, `~/Desktop`, `~/Documents` or `~/Pictures`, and not hidden (no `~/.ssh`, `.env`, ...). Change the list with `BROWSER_BRIDGE_FILE_DIRS` (path-separator separated).
 - The agent acts with your real logins; keep an eye on payments, deletions and messages.

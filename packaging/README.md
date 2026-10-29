@@ -34,7 +34,7 @@ claude mcp add browser-bridge -s user -- node /本目录/mcp/browser-bridge-mcp.
 
 ## 在其他 MCP 客户端中使用
 
-`mcp/browser-bridge-mcp.mjs` 是标准的 stdio MCP 服务，任何支持本机 MCP 的客户端都能用：由客户端用 `node` 启动它即可，不需要单独运行。多个客户端（例如 Claude Code、Codex、Claude 桌面版）可以同时使用，共用同一个服务和标签组。
+`mcp/browser-bridge-mcp.mjs` 是标准的 stdio MCP 服务，任何支持本机 MCP 的客户端都能用：由客户端用 `node` 启动它即可，不需要单独运行。多个客户端（例如 Claude Code、Codex、Claude 桌面版）可以同时使用，每个客户端会话有自己的标签组，互不干扰。
 
 **先确定两个绝对路径**
 
@@ -85,7 +85,7 @@ args = ["/path/to/browser-bridge-mcp.mjs"]
 - 只支持远程 MCP（填一个网址）的客户端无法直接使用，本服务只能由本机客户端启动。
 - 截图以图片形式返回，客户端需要支持 MCP 的图片结果，否则看不到截图（其他工具不受影响）。
 - 文件上传和 GIF 保存默认只允许在下载、桌面、文稿、图片目录中（从命令行客户端启动时还包括当前项目目录）。需要其他目录时，在配置里加环境变量，例如 JSON 中写 `"env": { "BROWSER_BRIDGE_FILE_DIRS": "/Users/你/work:/Users/你/Downloads" }`。
-- 页面上的标签组名「Browser Bridge」和「停止」按钮对所有客户端都一样显示。
+- 标签组名是「客户端名 · 项目目录」，例如「Codex · api」；页面上的「停止」只拦下该标签页所属的客户端。
 
 ## AI 元素查找（可选）
 
@@ -99,7 +99,7 @@ args = ["/path/to/browser-bridge-mcp.mjs"]
 
 ## 使用须知
 
-- Claude 只能操作「Browser Bridge」标签组里的标签页。想让它操作已有页面，把标签页拖进该组，或点扩展图标里的「交出当前标签页」。
+- 每个 agent 只能操作自己标签组里的标签页。想让它操作已有页面，把标签页拖进它的组，或点扩展图标，选好 agent 后点「交出」。
 - Claude 操作时页面四周会出现彩色渐变边框，底部的「停止」按钮可以随时叫停。
 - 扩展界面跟随浏览器语言（中文 / 英文）。
 - 操作时 Chrome 顶部会出现「正在调试此浏览器」提示条，空闲 20 秒后自动消失。

@@ -1,10 +1,10 @@
 // 跟踪 Claude 在各标签页上的活动：
 // - 执行工具时在页面上显示指示器（发光边框、光标、停止按钮），标签组标题加 ⌛
 // - 标签页 20 秒没有新操作就隐藏指示器并断开调试器（Chrome 的“正在调试”提示条随之消失），标题改为 ✅
-// - MCP 服务断开时释放所有标签页；标签页被拖出标签组时立即释放
-// - 用户点击页面上的“停止”后，Claude 的下一次调用会被拒绝
+// - MCP 服务断开时释放所有标签页，某个会话结束时释放它的标签页；标签页被拖出标签组时立即释放
+// - 用户点击页面上的“停止”后，该标签页所属会话（agent）的下一次调用会被拒绝，其他会话不受影响
 import { detachAllDebuggers, detachDebugger, setBusyChecker, sleep } from './cdp.js';
-import { getGroupId, setGroupPrefix } from './tabs.js';
+import { clearAllPrefixes, groupOfSession, sessionOfGroup, setGroupPrefix } from './tabs.js';
 
 const IDLE_RELEASE_MS = 20_000;
 const STOP_VALID_MS = 120_000;
@@ -12,24 +12,22 @@ const STOP_VALID_MS = 120_000;
 const running = new Map(); // tabId -> 正在执行的工具数
 const idleTimers = new Map();
 const activeTabs = new Set(); // 正在显示指示器的标签页
-let stopRequestedAt = 0;
+const tabGroups = new Map(); // 活动标签页 -> 所在标签组
+const stopRequests = new Map(); // 会话 ID -> 用户点击“停止”的时间
 
 export function initActivity() {
   setBusyChecker((tabId) => running.has(tabId));
   // 页面跳转后内容脚本会重新加载，需要重新显示指示器
   chrome.tabs.onUpdated.addListener((tabId, info) => {
     if (info.status === 'complete' && activeTabs.has(tabId)) sendToIndicator(tabId, { type: 'BB_SHOW' });
-    if (info.groupId !== undefined && activeTabs.has(tabId)) {
-      getGroupId().then((gid) => {
-        if (info.groupId !== gid) release(tabId);
-      });
-    }
+    if (info.groupId !== undefined && activeTabs.has(tabId) && info.groupId !== tabGroups.get(tabId)) release(tabId);
   });
   chrome.tabs.onRemoved.addListener((tabId) => {
     clearTimeout(idleTimers.get(tabId));
     idleTimers.delete(tabId);
     running.delete(tabId);
     activeTabs.delete(tabId);
+    tabGroups.delete(tabId);
   });
 }
 
@@ -59,7 +57,11 @@ export async function toolStarted(tabId) {
     activeTabs.add(tabId);
     sendToIndicator(tabId, { type: 'BB_SHOW' });
   }
-  setGroupPrefix('⌛').catch(() => {});
+  const groupId = (await chrome.tabs.get(tabId).catch(() => null))?.groupId;
+  if (groupId != null && groupId >= 0) {
+    tabGroups.set(tabId, groupId);
+    setGroupPrefix(groupId, '⌛').catch(() => {});
+  }
 }
 
 export function toolFinished(tabId) {
@@ -81,8 +83,11 @@ async function release(tabId) {
   await sendToIndicator(tabId, { type: 'BB_HIDE' });
   // 隐藏指示器期间可能有新的工具开始执行，此时不能断开调试器
   if (running.get(tabId) || activeTabs.has(tabId)) return;
+  const groupId = tabGroups.get(tabId);
+  tabGroups.delete(tabId);
   await detachDebugger(tabId);
-  if (!activeTabs.size) setGroupPrefix('✅').catch(() => {});
+  // 组里没有其他正在操作的标签页时标记为已完成
+  if (groupId != null && ![...tabGroups.values()].includes(groupId)) setGroupPrefix(groupId, '✅').catch(() => {});
 }
 
 // 页面指示器的心跳：Service Worker 重启后状态丢失，指示器据此自行隐藏
@@ -93,7 +98,7 @@ export function isTabActive(tabId) {
 // Service Worker 启动时不可能有工具在执行：断开上次遗留的调试会话、清除标签组状态前缀
 export async function cleanupOnStartup() {
   await detachAllDebuggers().catch(() => {});
-  await setGroupPrefix(null).catch(() => {});
+  await clearAllPrefixes().catch(() => {});
 }
 
 // MCP 服务全部断开：释放所有标签页
@@ -103,28 +108,45 @@ export async function releaseAll() {
   running.clear();
   const tabs = [...activeTabs];
   activeTabs.clear();
+  tabGroups.clear();
   await Promise.all(tabs.map((tabId) => sendToIndicator(tabId, { type: 'BB_HIDE' })));
   await detachAllDebuggers();
-  await setGroupPrefix(null).catch(() => {});
+  await clearAllPrefixes().catch(() => {});
 }
 
-export async function requestStop() {
-  stopRequestedAt = Date.now();
-  const tabs = [...activeTabs];
-  await Promise.all(tabs.map((tabId) => sendToIndicator(tabId, { type: 'BB_HIDE' })));
-  activeTabs.clear();
+// 某个会话结束（agent 退出）：释放它标签组里的标签页，清除状态前缀
+export async function releaseSession(session) {
+  stopRequests.delete(session);
+  const groupId = await groupOfSession(session);
+  if (groupId == null) return;
+  const tabs = [...tabGroups].filter(([, gid]) => gid === groupId).map(([tabId]) => tabId);
+  await Promise.all(tabs.map((tabId) => release(tabId)));
+  await setGroupPrefix(groupId, null);
 }
 
-// 用户点了“停止”时返回 true（只生效一次，2 分钟后自动失效）
-export function consumeStopRequest() {
-  if (!stopRequestedAt) return false;
-  const valid = Date.now() - stopRequestedAt < STOP_VALID_MS;
-  stopRequestedAt = 0;
-  return valid;
+// 用户在某个标签页上点了“停止”：只拦下该标签页所属的会话
+export async function requestStop(tabId) {
+  const groupId = (await chrome.tabs.get(tabId).catch(() => null))?.groupId;
+  const session = await sessionOfGroup(groupId);
+  if (!session) return false;
+  stopRequests.set(session, Date.now());
+  const tabs = [...activeTabs].filter((t) => tabGroups.get(t) === groupId);
+  await Promise.all(tabs.map((t) => sendToIndicator(t, { type: 'BB_HIDE' })));
+  for (const t of tabs) activeTabs.delete(t);
+  return true;
 }
 
-export function stopPending() {
-  return stopRequestedAt > 0 && Date.now() - stopRequestedAt < STOP_VALID_MS;
+// 该会话的用户点了“停止”时返回 true（只生效一次，2 分钟后自动失效）
+export function consumeStopRequest(session) {
+  const at = stopRequests.get(session);
+  if (!at) return false;
+  stopRequests.delete(session);
+  return Date.now() - at < STOP_VALID_MS;
+}
+
+export function stopPending(session) {
+  const at = stopRequests.get(session);
+  return !!at && Date.now() - at < STOP_VALID_MS;
 }
 
 // 截图、点击期间临时隐藏指示器，避免出现在截图里或挡住点击

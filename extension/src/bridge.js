@@ -7,6 +7,7 @@ const PING_INTERVAL_MS = 20_000;
 
 export class Bridge {
   // hooks.onConnected / hooks.onDisconnected：连接建立 / 断开时回调
+  // hooks.onSession / hooks.onSessionEnd：MCP 服务告知某个会话（agent）连上 / 结束
   constructor(handler, hooks = {}) {
     this.handler = handler;
     this.hooks = hooks;
@@ -107,10 +108,12 @@ export class Bridge {
       if (this.inflight.has(msg.id)) this.cancelled.add(msg.id);
       return;
     }
+    if (msg.type === 'session') return this.hooks.onSession?.(msg.session);
+    if (msg.type === 'session_end') return this.hooks.onSessionEnd?.(msg.id);
     if (msg.type !== 'request') return;
     this.inflight.add(msg.id);
     try {
-      const result = await this.handler(msg.tool, msg.args || {}, { isCancelled: () => this.cancelled.has(msg.id) });
+      const result = await this.handler(msg.tool, msg.args || {}, { isCancelled: () => this.cancelled.has(msg.id), session: msg.session });
       this.send({ type: 'response', id: msg.id, result });
     } catch (e) {
       this.send({ type: 'response', id: msg.id, error: String(e?.message || e) });

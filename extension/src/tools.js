@@ -10,7 +10,7 @@ import { computer } from './computer.js';
 import { gifCreator, recordAction } from './gif.js';
 import { beginPendingScope, clearPendingContexts, commitPendingContexts, loadImage, toViewport } from './screenshot.js';
 import {
-  assertSameDomain, assertTabInGroup, createTabInGroup, getGroupId, getOrCreateContext, GROUP_TITLE, listGroupTabs, tabContext, waitForLoad,
+  assertSameDomain, assertTabInGroup, createTabInGroup, getGroupId, getOrCreateContext, listGroupTabs, sessionTitle, tabContext, waitForLoad,
 } from './tabs.js';
 
 const STOP_MESSAGE = 'The user clicked "Stop" in the browser. Stop the browser task now and ask the user how they would like to proceed. Do not retry this action.';
@@ -54,7 +54,7 @@ function markActive(tabId, ctx) {
 
 // 校验标签页、标记活动，并尽早附加调试器（开始记录控制台/网络、启用焦点模拟）
 async function useTab(tabId, ctx) {
-  const tab = await assertTabInGroup(tabId);
+  const tab = await assertTabInGroup(tabId, ctx.session);
   const proto = protectedProtocol(tab.url);
   if (proto) {
     throw new ToolError('chrome_protected_page', `Cannot control ${proto}// pages. Navigate to a regular web page (http:// or https://) first, then retry.`);
@@ -128,9 +128,9 @@ function redactUrl(url) {
 }
 
 const TOOLS = {
-  async tabs_context_mcp({ createIfEmpty } = {}) {
-    const ctx = await getOrCreateContext({ createIfEmpty: !!createIfEmpty });
-    if (!ctx) return { output: `No "${GROUP_TITLE}" tab group found. Use createIfEmpty: true to create a group.` };
+  async tabs_context_mcp({ createIfEmpty } = {}, { session }) {
+    const ctx = await getOrCreateContext(session, { createIfEmpty: !!createIfEmpty });
+    if (!ctx) return { output: `No "${await sessionTitle(session)}" tab group found. Use createIfEmpty: true to create a group.` };
     return {
       output: JSON.stringify({
         availableTabs: ctx.availableTabs.map((t) => ({ tabId: t.id, title: t.title, url: t.url })),
@@ -139,16 +139,16 @@ const TOOLS = {
     };
   },
 
-  async tabs_create_mcp() {
-    const { tab } = await createTabInGroup();
+  async tabs_create_mcp(_args, { session }) {
+    const { tab } = await createTabInGroup(session);
     await ensureAttached(tab.id).catch(() => {});
-    return { output: `Created new tab. Tab ID: ${tab.id}`, tabContext: await tabContext(tab.id) };
+    return { output: `Created new tab. Tab ID: ${tab.id}`, tabContext: await tabContext(tab.id, session) };
   },
 
-  async tabs_close_mcp({ tabId }) {
+  async tabs_close_mcp({ tabId }, { session }) {
     if (!Number.isInteger(tabId)) throw new ToolError('tab_close_invalid_params', 'Missing required parameter tabId (integer)');
-    await assertTabInGroup(tabId);
-    const groupId = await getGroupId();
+    await assertTabInGroup(tabId, session);
+    const groupId = await getGroupId(session);
     await chrome.tabs.remove(tabId);
     const remaining = await listGroupTabs(groupId);
     return {
@@ -159,7 +159,7 @@ const TOOLS = {
 
   async navigate({ url, tabId, force }, ctx) {
     if (typeof url !== 'string' || !url.trim()) throw invalid('URL parameter is required');
-    await assertTabInGroup(tabId);
+    await assertTabInGroup(tabId, ctx.session);
     markActive(tabId, ctx);
     await ensureAttached(tabId).catch(() => {});
     settlePendingDialog(tabId);
@@ -319,11 +319,11 @@ const TOOLS = {
     return { output: `Found ${matched.length} network request${matched.length === 1 ? '' : 's'}${filter}${more}:\n\n${body}` };
   },
 
-  async resize_window({ width, height, tabId }) {
+  async resize_window({ width, height, tabId }, { session }) {
     if (typeof width !== 'number' || typeof height !== 'number') throw invalid('Both width and height parameters are required and must be numbers');
     if (width <= 0 || height <= 0) throw invalid('Width and height must be positive numbers');
     if (width > 7680 || height > 4320) throw invalid('Dimensions exceed 8K resolution limit. Maximum dimensions are 7680x4320');
-    const tab = await assertTabInGroup(tabId);
+    const tab = await assertTabInGroup(tabId, session);
     await chrome.windows.update(tab.windowId, { state: 'normal', width: Math.floor(width), height: Math.floor(height) });
     return { output: `Successfully resized window containing tab ${tabId} to ${Math.floor(width)}x${Math.floor(height)} pixels` };
   },
@@ -383,8 +383,8 @@ const TOOLS = {
       for (let i = 0; i < actions.length; i++) {
         const { name, input } = actions[i];
         const label = typeof input.action === 'string' ? `${name}:${input.action}` : name;
-        if (stopPending()) {
-          consumeStopRequest();
+        if (stopPending(ctx.session)) {
+          consumeStopRequest(ctx.session);
           throw new ToolError('user_stopped', `${done() ? `${done()}\n\n` : ''}${STOP_MESSAGE}`);
         }
         if (ctx.isCancelled?.()) {
@@ -392,7 +392,7 @@ const TOOLS = {
         }
         let result;
         try {
-          result = await runOne(name, input, { pendingScope: scope });
+          result = await runOne(name, input, { pendingScope: scope, session: ctx.session });
         } catch (e) {
           throw new ToolError(e?.code || 'batch_action_failed', `${done() ? `${done()}\n\n` : ''}[${label}] failed (action ${i + 1} of ${actions.length}): ${e?.message || e}`);
         }
@@ -412,7 +412,7 @@ const TOOLS = {
     } finally {
       clearPendingContexts(scope);
     }
-    return { batchItems: items, tabContext: await tabContext(lastTabId) };
+    return { batchItems: items, tabContext: await tabContext(lastTabId, ctx.session) };
   },
 };
 
@@ -441,15 +441,16 @@ async function runOne(name, args, ctx) {
 }
 
 // opts.isCancelled：MCP 客户端取消了这次调用（例如用户在 Claude Code 里按了 Esc）
+// opts.session：发起调用的会话（agent），只能操作该会话自己的标签组
 export async function runTool(name, args = {}, opts = {}) {
   if (!TOOLS[name]) {
     const version = chrome.runtime.getManifest().version;
     return { error: `Unknown tool: ${name}. The Browser Bridge extension (v${version}) may be older than the MCP server — ask the user to reload it in chrome://extensions.`, errorCode: 'unknown_tool' };
   }
-  if (consumeStopRequest()) return { error: STOP_MESSAGE, errorCode: 'user_stopped' };
+  if (consumeStopRequest(opts.session)) return { error: STOP_MESSAGE, errorCode: 'user_stopped' };
   let result;
   try {
-    result = await runOne(name, args || {}, { isCancelled: opts.isCancelled });
+    result = await runOne(name, args || {}, { isCancelled: opts.isCancelled, session: opts.session });
   } catch (e) {
     const code = errorCodeFor(e);
     let message = String(e?.message || e);
@@ -472,7 +473,7 @@ export async function runTool(name, args = {}, opts = {}) {
   }
   const tabId = args?.tabId;
   if (typeof tabId === 'number' && !result.tabContext && !NO_TAB_CONTEXT.has(name)) {
-    result.tabContext = await tabContext(tabId).catch(() => undefined);
+    result.tabContext = await tabContext(tabId, opts.session).catch(() => undefined);
   }
   for (const key of Object.keys(result)) if (key.startsWith('_')) delete result[key];
   return result;

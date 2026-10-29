@@ -98,8 +98,8 @@
       // Claude 自己的点击也是可信事件，但点击期间按钮已隐藏，这里只会是用户点击
       if (!e.isTrusted) return;
       try {
-        await chrome.runtime.sendMessage({ type: 'BB_STOP' });
-        toast(t('stopSent'));
+        const res = await chrome.runtime.sendMessage({ type: 'BB_STOP' });
+        toast(t(res?.ok ? 'stopSent' : 'stopFailed'));
       } catch {
         toast(t('stopFailed'));
       }

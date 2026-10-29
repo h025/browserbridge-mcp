@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const suites = process.argv.slice(2).length ? process.argv.slice(2) : ['regression', 'features', 'review', 'ai', 'fixes'];
+const suites = process.argv.slice(2).length ? process.argv.slice(2) : ['regression', 'features', 'review', 'ai', 'fixes', 'sessions'];
 const results = [];
 for (const name of suites) {
   console.log(`\n######## ${name}`);

@@ -3,6 +3,10 @@
 // 每个 Claude Code 会话都会启动一个 MCP 服务进程。第一个进程监听端口成为 hub，
 // 浏览器扩展连到 hub；后续进程发现端口被占用后以 peer 身份连到 hub，请求经 hub 转发。
 // hub 退出后，peer 会自动竞争接任，扩展也会自动重连。
+//
+// 每个进程是一个会话（session：{ id, client, folder, cwd }），请求都带上会话 ID，扩展据此给每个
+// agent 单独一个标签组。hub 把自己和各 peer 的会话告诉扩展（type: 'session'），peer 断开时通知
+// 扩展该会话结束（type: 'session_end'）；扩展重连或 hub 换人后会重新告知。
 
 import { EventEmitter } from 'node:events';
 import { WebSocket, WebSocketServer } from 'ws';
@@ -22,9 +26,11 @@ const ALLOWED_ORIGINS = new Set(
 const log = (...args) => console.error('[browser-bridge]', ...args);
 
 export class Bridge extends EventEmitter {
-  constructor({ port }) {
+  constructor({ port, session }) {
     super();
     this.port = port;
+    this.session = session;
+    this.peerSessions = new Map(); // hub 上：peer 连接 -> 它的会话
     this.role = null; // 'hub' | 'peer'
     this.wss = null;
     this.hubSocket = null;
@@ -79,6 +85,7 @@ export class Bridge extends EventEmitter {
         this.hubSocket = ws;
         this.retryDelay = 0;
         log('已作为 peer 连接到现有 hub');
+        this.announce();
         resolve();
       });
       ws.on('message', (data) => this.onResponse(parse(data)));
@@ -102,6 +109,8 @@ export class Bridge extends EventEmitter {
     if (path === '/extension') {
       this.extensions.push(ws);
       log('浏览器扩展已连接');
+      // 告诉扩展当前有哪些会话（hub 自己和所有 peer）
+      for (const s of [this.session, ...this.peerSessions.values()]) if (s) send(ws, { type: 'session', session: s });
       this.emit('extension');
       ws.on('message', (data) => {
         const msg = parse(data);
@@ -123,11 +132,17 @@ export class Bridge extends EventEmitter {
           controllers.get(msg.id)?.abort();
           return;
         }
+        if (msg?.type === 'hello' && msg.session?.id) {
+          this.peerSessions.set(ws, msg.session);
+          this.broadcast({ type: 'session', session: msg.session });
+          return;
+        }
         if (msg?.type !== 'request') return;
         const controller = new AbortController();
         controllers.set(msg.id, controller);
         try {
-          const result = await this.call(msg.tool, msg.args, { timeoutMs: msg.timeoutMs, signal: controller.signal });
+          const session = msg.session ?? this.peerSessions.get(ws)?.id;
+          const result = await this.call(msg.tool, msg.args, { timeoutMs: msg.timeoutMs, signal: controller.signal, session });
           send(ws, { type: 'response', id: msg.id, result });
         } catch (e) {
           send(ws, { type: 'response', id: msg.id, error: e.message });
@@ -137,6 +152,9 @@ export class Bridge extends EventEmitter {
       });
       ws.on('close', () => {
         for (const c of controllers.values()) c.abort();
+        const s = this.peerSessions.get(ws);
+        this.peerSessions.delete(ws);
+        if (s) this.broadcast({ type: 'session_end', id: s.id });
       });
     }
   }
@@ -194,8 +212,19 @@ export class Bridge extends EventEmitter {
     throw new Error(say('无法连接浏览器桥（hub 正在切换），请稍后重试', 'Could not reach the bridge while its hub was changing over; try again in a moment.'));
   }
 
-  // signal 被中止（MCP 客户端取消了调用）时通知执行方并立即返回
-  async call(tool, args = {}, { timeoutMs = 120_000, signal } = {}) {
+  // 把本进程的会话信息告诉扩展（hub 直接发，peer 经 hub 转发）；客户端名称在 MCP 握手后才知道，届时再发一次
+  announce() {
+    if (!this.session) return;
+    if (this.role === 'hub') this.broadcast({ type: 'session', session: this.session });
+    else if (this.role === 'peer' && this.hubSocket) send(this.hubSocket, { type: 'hello', session: this.session });
+  }
+
+  broadcast(obj) {
+    for (const ws of this.extensions) send(ws, obj);
+  }
+
+  // signal 被中止（MCP 客户端取消了调用）时通知执行方并立即返回；session 是发起请求的会话 ID（默认本进程）
+  async call(tool, args = {}, { timeoutMs = 120_000, signal, session = this.session?.id } = {}) {
     const socket = await this.target();
     if (signal?.aborted) throw new Error('Cancelled by the client');
     const id = this.nextId++;
@@ -227,7 +256,7 @@ export class Bridge extends EventEmitter {
           reject(e);
         },
       });
-      send(socket, { type: 'request', id, tool, args, timeoutMs });
+      send(socket, { type: 'request', id, tool, args, timeoutMs, session });
     });
   }
 

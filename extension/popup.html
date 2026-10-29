@@ -22,6 +22,8 @@
     button.primary { width: 100%; margin-top: 12px; padding: 7px 10px; border: 0; border-radius: 8px; background: var(--gradient); color: #fff; font-weight: 600; }
     button.primary:hover { filter: brightness(1.08); }
     .hint { color: var(--muted); font-size: 12px; margin-top: 10px; }
+    select { flex: 1; min-width: 0; padding: 5px 6px; border: 1px solid rgba(127,127,127,.4); border-radius: 6px; background: transparent; color: inherit; font: inherit; }
+    button:disabled { opacity: .5; cursor: default; }
     .ai { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(127,127,127,.25); font-size: 12px; }
   </style>
 </head>
@@ -37,6 +39,8 @@
     <button id="reconnect" data-i18n="reconnect"></button>
   </div>
 
+  <label for="target" data-i18n="shareTo"></label>
+  <div class="row"><select id="target"></select></div>
   <button id="share" class="primary" data-i18n="shareTab"></button>
   <div class="hint" data-i18n="groupHint"></div>
   <div class="ai"><span id="aiMode" data-i18n="findModeLoading"></span><button id="aiSettings" data-i18n="settings"></button></div>

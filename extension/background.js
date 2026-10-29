@@ -1,9 +1,9 @@
-import { cleanupOnStartup, initActivity, isTabActive, releaseAll, requestStop } from './src/activity.js';
+import { cleanupOnStartup, initActivity, isTabActive, releaseAll, releaseSession, requestStop } from './src/activity.js';
 import { Bridge, DEFAULT_PORT } from './src/bridge.js';
 import { initCdp } from './src/cdp.js';
 import { closeOffscreen, ensureOffscreen } from './src/gif.js';
 import { initScreenshotState } from './src/screenshot.js';
-import { addTabToGroup } from './src/tabs.js';
+import { addTabToGroup, DEFAULT_SESSION, endSession, liveSessions, markAllOffline, registerSession } from './src/tabs.js';
 import { runTool } from './src/tools.js';
 
 // 所有监听器必须在顶层同步注册，Service Worker 被唤醒时才能收到事件
@@ -13,13 +13,21 @@ initScreenshotState();
 // 清理上次遗留的调试会话；完成之前不执行工具，避免刚附加的调试器被清理掉
 const startupCleanup = cleanupOnStartup();
 
-const bridge = new Bridge((name, args, opts) => startupCleanup.then(() => runTool(name, args, opts)), {
+// 每个请求带着发起它的会话（agent）；旧版 MCP 服务不带，归入默认会话
+const bridge = new Bridge((name, args, opts) => startupCleanup.then(() => runTool(name, args, { ...opts, session: opts.session || DEFAULT_SESSION })), {
   // 连接期间用离屏文档保活，避免后台节流导致连接中断
   onConnected: () => ensureOffscreen().catch(() => {}),
-  // MCP 服务全部断开：隐藏指示器、断开所有调试器
+  // MCP 服务全部断开：隐藏指示器、断开所有调试器；重连后服务会重新告知各会话
   onDisconnected: () => {
+    markAllOffline();
     releaseAll().catch(() => {});
     closeOffscreen();
+  },
+  onSession: (session) => registerSession(session).catch(() => {}),
+  // agent 退出：释放它的标签页，标签组保留
+  onSessionEnd: (id) => {
+    endSession(id);
+    releaseSession(id).catch(() => {});
   },
 });
 
@@ -40,10 +48,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       case 'BB_INDICATOR_HEARTBEAT':
         return { active: sender.tab ? isTabActive(sender.tab.id) : false };
       case 'BB_STOP':
-        // 只接受来自标签页内容脚本（页面上的“停止 Claude”按钮）的请求
+        // 只接受来自标签页内容脚本（页面上的“停止”按钮）的请求；只拦下该标签页所属的 agent
         if (!sender.tab) return { ok: false };
-        await requestStop();
-        return { ok: true };
+        return { ok: await requestStop(sender.tab.id) };
       case 'status':
         return { ...bridge.status(), defaultPort: DEFAULT_PORT };
       case 'setPort':
@@ -53,8 +60,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       case 'reconnect':
         bridge.reconnect();
         return { ok: true };
+      case 'sessions':
+        return { sessions: await liveSessions() };
       case 'shareTab': {
-        const tab = await addTabToGroup(msg.tabId);
+        const tab = await addTabToGroup(msg.tabId, msg.session || DEFAULT_SESSION);
         return { ok: true, tabId: tab.id };
       }
       default:

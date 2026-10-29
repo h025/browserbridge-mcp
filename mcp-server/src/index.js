@@ -1,5 +1,6 @@
 // MCP 服务：通过 stdio 与 MCP 客户端通信，经本机 WebSocket 桥把工具调用交给浏览器扩展执行。
 // 由 cli.js 调用 startServer() 启动
+import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, delimiter, dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path';
@@ -63,11 +64,18 @@ function checkLocalPath(input, { mustExist }) {
   return real;
 }
 
-const bridge = new Bridge({ port: PORT });
+// 每个 MCP 服务进程对应一个 agent 会话，扩展给每个会话单独一个标签组，互不干扰。
+// client 是 MCP 客户端名称（握手后才知道），folder 用于标签组名称，cwd 用于客户端重启后接回原来的标签组
+const session = { id: randomUUID(), client: '', folder: projectDir() ? basename(projectDir()) : '', cwd: realOrSelf(process.cwd()) };
+const bridge = new Bridge({ port: PORT, session });
 const server = new Server(
   { name: 'browser-bridge', version: VERSION },
   { capabilities: { tools: {} }, instructions: INSTRUCTIONS },
 );
+server.oninitialized = () => {
+  session.client = server.getClientVersion()?.name || '';
+  bridge.announce();
+};
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS }));
 

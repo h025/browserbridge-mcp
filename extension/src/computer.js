@@ -25,7 +25,7 @@ function requirePoint(value, message) {
 }
 
 // 点击可能打开新标签页（target=_blank 等），把它们收进标签组并告诉 Claude
-function watchNewTabs(openerTabId) {
+function watchNewTabs(openerTabId, session) {
   const opened = [];
   const onCreated = (tab) => {
     if (tab.openerTabId === openerTabId && tab.id != null) opened.push(tab.id);
@@ -34,7 +34,7 @@ function watchNewTabs(openerTabId) {
   return async () => {
     await sleep(300);
     chrome.tabs.onCreated.removeListener(onCreated);
-    const groupId = await getGroupId();
+    const groupId = await getGroupId(session);
     for (const id of opened) {
       if (groupId == null) break;
       try {
@@ -94,7 +94,7 @@ export async function computer(args, ctx, agent) {
   if (CLICK_COUNTS[action]) {
     const point = await resolveTarget(tabId, args, agent, 'click');
     await guard('click action');
-    const finishWatch = watchNewTabs(tabId);
+    const finishWatch = watchNewTabs(tabId, ctx.session);
     let opened;
     try {
       await withPointer(tabId, point, () => click(tabId, point[0], point[1], {

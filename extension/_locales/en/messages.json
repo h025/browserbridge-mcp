@@ -93,8 +93,14 @@
   "reconnect": {
     "message": "Reconnect"
   },
+  "shareTo": {
+    "message": "Hand the current tab to"
+  },
+  "noAgents": {
+    "message": "No agent is connected"
+  },
   "shareTab": {
-    "message": "Hand over this tab"
+    "message": "Hand over"
   },
   "shareDone": {
     "message": "Handed over (tabId $ID$)",
@@ -113,7 +119,7 @@
     }
   },
   "groupHint": {
-    "message": "Only tabs in the “Browser Bridge” tab group can be controlled. You can also drag a tab into that group."
+    "message": "Each agent can only control its own tab group. You can also drag a tab into an agent’s group."
   },
   "findModeLoading": {
     "message": "Element search: …"
