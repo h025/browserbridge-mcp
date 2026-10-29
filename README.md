@@ -94,7 +94,9 @@ node scripts/package.mjs
 - `install.sh` / `install.cmd`：把 MCP 服务注册到 Claude Code
 - `README.md`：给使用者的中文安装说明（源文件在 `packaging/`）
 
-扩展和 MCP 服务的版本号需一致（`extension/manifest.json` 与 `mcp-server/package.json`），否则打包脚本会报错。包里不含任何 AI 接口配置，由使用者在扩展的「设置」里自行填写。
+扩展和 MCP 服务的版本号需一致（`extension/manifest.json` 与 `mcp-server/package.json`），否则打包脚本会报错。
+
+**自动发布**：推送到 `main` 后，GitHub Actions（`.github/workflows/release.yml`）会自动打包，把 zip 安装包发布到 [Releases](https://github.com/h025/browserbridge-mcp/releases) 的 `v<版本号>`。版本号没变时更新同一个 Release（替换安装包），要发新版本先改版本号再推送。包里不含任何 AI 接口配置，由使用者在扩展的「设置」里自行填写。
 
 ## 在其他 MCP 客户端中使用
 

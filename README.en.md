@@ -137,7 +137,7 @@ node scripts/package.mjs        # dist/browser-bridge-<version>.zip
 cd mcp-server && npm pack       # npm package
 ```
 
-The versions in `extension/manifest.json` and `mcp-server/package.json` must match. No AI endpoint is bundled; users enter their own in Settings.
+The versions in `extension/manifest.json` and `mcp-server/package.json` must match. Every push to `main` runs `.github/workflows/release.yml`, which builds the zip and publishes it to the `v<version>` [release](https://github.com/h025/browserbridge-mcp/releases); while the version stays the same, that release is updated in place, so bump the version to publish a new one. No AI endpoint is bundled; users enter their own in Settings.
 
 ## Tests
 
