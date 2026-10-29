@@ -112,112 +112,14 @@
   "groupHint": {
     "message": "Each agent can only control its own tab group. You can also drag a tab into an agent’s group."
   },
-  "findModeLoading": {
-    "message": "Element search: …"
-  },
-  "findModeAi": {
-    "message": "Element search: AI ($MODEL$)",
-    "placeholders": {
-      "model": {
-        "content": "$1"
-      }
-    }
-  },
-  "findModeKeyword": {
-    "message": "Element search: keywords"
-  },
   "settings": {
     "message": "Settings"
   },
+  "moreSettings": {
+    "message": "Typing and other settings"
+  },
   "optionsTitle": {
     "message": "Browser Bridge Settings"
-  },
-  "aiSection": {
-    "message": "AI element search"
-  },
-  "aiLead": {
-    "message": "Used by find. With an OpenAI-compatible endpoint filled in, a model reads natural-language queries such as “the button that places the order”; leave it empty to use local keyword matching."
-  },
-  "aiBaseUrl": {
-    "message": "Endpoint"
-  },
-  "aiBaseUrlHelp": {
-    "message": "An OpenAI-compatible API, e.g. https://api.openai.com/v1. A bare host gets /v1 added; a full …/chat/completions URL works too."
-  },
-  "aiApiKey": {
-    "message": "API key"
-  },
-  "aiApiKeyHelp": {
-    "message": "Stored only in this browser. Leave it empty for local models such as Ollama."
-  },
-  "aiModel": {
-    "message": "Model"
-  },
-  "aiModelHelp": {
-    "message": "A model name the endpoint accepts, e.g. gpt-4o-mini"
-  },
-  "show": {
-    "message": "Show"
-  },
-  "hide": {
-    "message": "Hide"
-  },
-  "testConnection": {
-    "message": "Test connection"
-  },
-  "clearConfig": {
-    "message": "Clear"
-  },
-  "aiPrivacy": {
-    "message": "When enabled, find sends the structure of the current page (password, verification-code and card fields are masked) to the endpoint above."
-  },
-  "modeAi": {
-    "message": "Now: find uses AI matching (model $MODEL$)",
-    "placeholders": {
-      "model": {
-        "content": "$1"
-      }
-    }
-  },
-  "modeKeyword": {
-    "message": "Now: find uses local keyword matching"
-  },
-  "errNoBaseUrl": {
-    "message": "Enter the endpoint."
-  },
-  "errScheme": {
-    "message": "The endpoint must start with http:// or https://."
-  },
-  "errNoModel": {
-    "message": "Enter the model name."
-  },
-  "errNeedConfig": {
-    "message": "Fill in the endpoint and model first."
-  },
-  "cleared": {
-    "message": "Cleared; find will use local keyword matching."
-  },
-  "saved": {
-    "message": "Saved. find will use AI matching; press “Test connection” to make sure it works."
-  },
-  "testOk": {
-    "message": "Connected. The model replied: $REPLY$",
-    "placeholders": {
-      "reply": {
-        "content": "$1"
-      }
-    }
-  },
-  "testEmpty": {
-    "message": "(empty)"
-  },
-  "testFailed": {
-    "message": "Connection failed: $ERROR$",
-    "placeholders": {
-      "error": {
-        "content": "$1"
-      }
-    }
   },
   "inputSection": {
     "message": "Input"

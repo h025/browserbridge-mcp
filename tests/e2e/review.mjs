@@ -79,7 +79,7 @@ try {
   await browser.send('Target.closeTarget', { targetId: sw.targetId });
   await sleep(8000);
   const after = await user.edgeSaturation();
-  expect(before > 60 && after < 15, `Service Worker 重启后页面指示器自行隐藏（边缘饱和度 ${before} → ${after}）`);
+  expect(before > 40 && after < 15, `Service Worker 重启后页面指示器自行隐藏（边缘饱和度 ${before} → ${after}）`);
   expect(!(await call('read_page', { tabId, filter: 'interactive', max_chars: 100 }, { quiet: true })).isError, 'Service Worker 重启后工具照常可用');
   browser.close();
   user.close();

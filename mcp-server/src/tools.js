@@ -185,7 +185,7 @@ export const TOOLS = [
   {
     name: 'find',
     description:
-      `Find elements on the page using natural language. Can search for elements by their purpose (e.g., "search bar", "login button") or by text content (e.g., "organic mango product"). Returns up to 20 matching elements with references that can be used with other tools. If more than 20 matches exist, you'll be notified to use a more specific query. Natural-language matching uses the AI model the user configured in the extension settings; when none is configured (or it fails) this falls back to keyword matching on visible text, accessible name, placeholder, title, id and name attributes \u2014 then use short distinctive keywords, or read_page for vague descriptions.` +
+      `Find elements on the page using natural language. Can search for elements by their purpose (e.g., "search bar", "login button") or by text content (e.g., "organic mango product"). Returns up to 20 matching elements with references that can be used with other tools. If more than 20 matches exist, you'll be notified to use a more specific query. Matching is done on visible text, accessible name, placeholder, title, id and name attributes; if no text matches, the interactive elements currently in view are returned instead so you can pick the right one yourself.` +
       NO_TAB,
     inputSchema: {
       type: 'object',

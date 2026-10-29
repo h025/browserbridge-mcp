@@ -45,15 +45,9 @@ $('share').onclick = async () => {
   $('share').textContent = res.error ? t('shareFailed', [res.error]) : t('shareDone', [String(res.tabId)]);
 };
 
-$('aiSettings').onclick = () => chrome.runtime.openOptionsPage();
-
-async function showAiMode() {
-  const { aiConfig: c } = await chrome.storage.local.get('aiConfig');
-  $('aiMode').textContent = c?.baseUrl && c?.model ? t('findModeAi', [c.model]) : t('findModeKeyword');
-}
+$('openSettings').onclick = () => chrome.runtime.openOptionsPage();
 
 refresh();
-showAiMode();
 showSessions();
 setInterval(() => {
   refresh();

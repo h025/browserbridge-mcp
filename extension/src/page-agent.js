@@ -250,7 +250,7 @@
     return { pageContent: content, viewport: { width: innerWidth, height: innerHeight } };
   }
 
-  // 本地关键词匹配（设置页填了 AI 接口时 find 改由 ai.js 理解自然语言）
+  // 本地关键词匹配（匹配不上时 tools.js 会把可交互元素交给调用方 agent 自己挑）
   function find({ query, limit = 20 }) {
     const q = String(query || '').toLowerCase().trim();
     if (!q) throw new AgentError('input_invalid', 'Query parameter is required');

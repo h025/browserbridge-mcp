@@ -112,112 +112,14 @@
   "groupHint": {
     "message": "每个 agent 只能操作自己的标签组，也可以把标签页直接拖进某个 agent 的组。"
   },
-  "findModeLoading": {
-    "message": "元素查找：…"
-  },
-  "findModeAi": {
-    "message": "元素查找：AI（$MODEL$）",
-    "placeholders": {
-      "model": {
-        "content": "$1"
-      }
-    }
-  },
-  "findModeKeyword": {
-    "message": "元素查找：关键词匹配"
-  },
   "settings": {
     "message": "设置"
   },
+  "moreSettings": {
+    "message": "打字方式等设置"
+  },
   "optionsTitle": {
     "message": "Browser Bridge 设置"
-  },
-  "aiSection": {
-    "message": "AI 元素查找"
-  },
-  "aiLead": {
-    "message": "用于 find（查找页面元素）：填写 OpenAI 兼容接口后由模型理解自然语言查询，例如“提交订单的按钮”；不填写则使用本地关键词匹配。"
-  },
-  "aiBaseUrl": {
-    "message": "接口地址"
-  },
-  "aiBaseUrlHelp": {
-    "message": "OpenAI 兼容接口，例如 https://api.openai.com/v1；只填域名时自动补 /v1，也可填完整的 …/chat/completions"
-  },
-  "aiApiKey": {
-    "message": "API Key"
-  },
-  "aiApiKeyHelp": {
-    "message": "只保存在本机浏览器中；本机模型（如 Ollama）可留空"
-  },
-  "aiModel": {
-    "message": "模型"
-  },
-  "aiModelHelp": {
-    "message": "接口支持的模型名，例如 gpt-4o-mini"
-  },
-  "show": {
-    "message": "显示"
-  },
-  "hide": {
-    "message": "隐藏"
-  },
-  "testConnection": {
-    "message": "测试连接"
-  },
-  "clearConfig": {
-    "message": "清除配置"
-  },
-  "aiPrivacy": {
-    "message": "启用后，find 会把当前页面的可访问性树（密码、验证码、信用卡等字段已脱敏）发送到上面的接口。"
-  },
-  "modeAi": {
-    "message": "当前：find 使用 AI 匹配（模型 $MODEL$）",
-    "placeholders": {
-      "model": {
-        "content": "$1"
-      }
-    }
-  },
-  "modeKeyword": {
-    "message": "当前：find 使用本地关键词匹配"
-  },
-  "errNoBaseUrl": {
-    "message": "请填写接口地址"
-  },
-  "errScheme": {
-    "message": "接口地址需要以 http:// 或 https:// 开头"
-  },
-  "errNoModel": {
-    "message": "请填写模型名"
-  },
-  "errNeedConfig": {
-    "message": "请先填写接口地址和模型"
-  },
-  "cleared": {
-    "message": "已清除，find 将使用本地关键词匹配。"
-  },
-  "saved": {
-    "message": "已保存。find 将使用 AI 匹配，建议点“测试连接”确认可用。"
-  },
-  "testOk": {
-    "message": "连接成功，模型回复：$REPLY$",
-    "placeholders": {
-      "reply": {
-        "content": "$1"
-      }
-    }
-  },
-  "testEmpty": {
-    "message": "（空）"
-  },
-  "testFailed": {
-    "message": "连接失败：$ERROR$",
-    "placeholders": {
-      "error": {
-        "content": "$1"
-      }
-    }
   },
   "inputSection": {
     "message": "输入"

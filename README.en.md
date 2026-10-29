@@ -63,7 +63,7 @@ Load the `extension/` folder with "Load unpacked". After restarting the client, 
 | `navigate` | Open a URL, go back or forward; a "Leave site?" prompt keeps the page unless `force: true` |
 | `computer` | Screenshot, click, double/triple/right click, hover, drag, type, keys, scroll, `scroll_to`, `zoom`, wait |
 | `read_page` | Accessibility tree with element `ref`s; `filter: "interactive"` for visible interactive elements |
-| `find` | Find elements by keywords, or by natural language with your own AI endpoint |
+| `find` | Find elements by their text; when nothing matches, the agent picks from the interactive elements in view |
 | `form_input` | Set inputs, selects, checkboxes, radios, dates, sliders |
 | `get_page_text` | Extract the main text (article / main first) |
 | `javascript_tool` | Run JS in the page (REPL semantics, top-level await, not blocked by CSP) |
@@ -87,23 +87,13 @@ Highlights:
 
 Other notes:
 
-- `find` can use your own OpenAI-compatible endpoint (see below) to understand natural language; without it, local keyword matching is used.
+- `find` matches elements by their text; when nothing matches, the interactive elements in view are handed to the agent to pick from.
 - No account and no site-permission prompts.
 - `gif_creator` with `download: true` writes the GIF to disk through the MCP server and returns the path.
 
 ## Interface language
 
 The popup, settings page and the GIF action labels follow the browser's UI language: Chinese and English for now (other languages show English). Strings live in `extension/_locales/`. The `browserbridge-mcp` command line and messages such as "extension not connected" follow the system language (`LANG`). Tool descriptions and results for the model are always English.
-
-## AI element search (optional)
-
-Open "Settings" in the extension popup and fill in an OpenAI-compatible endpoint:
-
-- **Endpoint**, e.g. `https://api.openai.com/v1` (a bare host gets `/v1/chat/completions` added)
-- **API key**, stored only in this browser (`chrome.storage.local`); can be empty for local models such as Ollama
-- **Model**
-
-With it, `find` sends the page's accessibility tree (sensitive fields masked) and the query to that model and returns matching elements with reasons. Refs invented by the model are dropped. If the endpoint is missing, fails or times out (60 s), keyword matching is used and the result says why.
 
 ## Security
 
@@ -138,7 +128,7 @@ node scripts/package.mjs        # dist/browser-bridge-<version>.zip
 cd mcp-server && npm pack       # npm package
 ```
 
-The versions in `extension/manifest.json` and `mcp-server/package.json` must match. Every push to `main` runs `.github/workflows/release.yml`, which builds the zip and publishes it to the `v<version>` [release](https://github.com/h025/browserbridge-mcp/releases); while the version stays the same, that release is updated in place, so bump the version to publish a new one. When npm does not have that version yet, the workflow also publishes [@h025/browserbridge-mcp](https://www.npmjs.com/package/@h025/browserbridge-mcp) through npm trusted publishing (npmjs.com trusts this repo's `release.yml`), with no npm token and with provenance. No AI endpoint is bundled; users enter their own in Settings.
+The versions in `extension/manifest.json` and `mcp-server/package.json` must match. Every push to `main` runs `.github/workflows/release.yml`, which builds the zip and publishes it to the `v<version>` [release](https://github.com/h025/browserbridge-mcp/releases); while the version stays the same, that release is updated in place, so bump the version to publish a new one. When npm does not have that version yet, the workflow also publishes [@h025/browserbridge-mcp](https://www.npmjs.com/package/@h025/browserbridge-mcp) through npm trusted publishing (npmjs.com trusts this repo's `release.yml`), with no npm token and with provenance.
 
 ## Tests
 

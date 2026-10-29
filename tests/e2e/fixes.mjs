@@ -11,6 +11,9 @@ try {
   const tree = (await call('read_page', { tabId, filter: 'interactive' }, { quiet: true })).t;
   expect(/link "样式链接"/.test(tree) && !/styled-x|color:red/.test(tree), 'read_page：链接名称不含 <style> 里的 CSS');
   const f = (await call('find', { tabId, query: '样式链接' })).t;
+  expect(/提交表单/.test((await call('find', { tabId, query: '提交' })).t), 'find：按文字匹配到按钮');
+  const cand = (await call('find', { tabId, query: 'unicorn widget' })).t;
+  expect(/No element text matched/.test(cand) && /button "提交表单"/.test(cand), 'find：文字匹配不上时，把视口里的可交互元素交给 agent 自己挑');
   expect(/link "样式链接"/.test(f) && !/color/.test(f), 'find：结果同样不含 CSS');
 
   // 2. 控制台/网络记录在第一次读取时才开启

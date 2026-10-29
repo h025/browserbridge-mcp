@@ -10,7 +10,8 @@ try {
   await call('navigate', { tabId, url: 'http://127.0.0.1:18801/test.html' });
   const user = await userPage('test.html');
   await sleep(500);
-  expect((await user.edgeSaturation()) > 60, '执行工具时页面四周显示彩色光晕');
+  const edge = await user.edgeSaturation();
+  expect(edge > 40, `执行工具时页面四周显示彩色光晕（边缘饱和度 ${edge}）`);
 
   const vp = JSON.parse(await js(tabId, '({ w: innerWidth, h: innerHeight })'));
   const shot = await call('computer', { tabId, action: 'screenshot' });

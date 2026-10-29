@@ -1,7 +1,6 @@
 // 工具实现与分发。每个工具返回 { output, base64Image?, imageFormat?, tabContext?, batchItems? }
 // 或抛出 ToolError；runTool 统一转成 { error, errorCode }，由 MCP 服务格式化后交给 Claude。
 import { toolFinished, toolStarted } from './activity.js';
-import { AI_TREE_MAX_CHARS, aiEnabled, aiFind, getAiConfig } from './ai.js';
 import {
   clearConsoleMessages, clearNetworkRequests, enableConsoleTracking, enableNetworkTracking, ensureAttached, getConsoleMessages, getNetworkRequests,
   navigateWithBeforeunload, protectedProtocol, sendCommand, settlePendingDialog, sleep, takeDialogNotes, ToolError, withTimeout,
@@ -17,6 +16,7 @@ const JS_TIMEOUT_MS = 30_000;
 const JS_OUTPUT_LIMIT = 51_200;
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const SCRIPT_TIMEOUT_MS = 15_000;
+const CANDIDATES_MAX_CHARS = 8_000;
 
 const invalid = (message) => new ToolError('input_invalid', message);
 
@@ -206,34 +206,23 @@ const TOOLS = {
     return { output: `${r.pageContent}\n\nViewport: ${r.viewport.width}x${r.viewport.height}` };
   },
 
-  // 设置页配置了 AI 接口时由模型理解自然语言查询；未配置或调用失败时用本地关键词匹配
+  // 按文字做关键词匹配；匹配不上时把视口里可交互的元素交给调用方 agent，由它自己判断（不依赖任何外部 AI 接口）
   async find({ tabId, query }, ctx) {
     if (typeof query !== 'string' || !query.trim()) throw invalid('Query parameter is required');
     await useTab(tabId, ctx);
-    const config = await getAiConfig();
-    let fallbackNote = '';
-    if (aiEnabled(config)) {
-      const { pageContent } = await agent(tabId, 'accessibilityTree', { filter: 'all', maxChars: AI_TREE_MAX_CHARS });
-      let r;
-      try {
-        r = await aiFind(config, query, pageContent);
-      } catch (e) {
-        fallbackNote = `\n\n[note: AI matching with model "${config.model}" failed (${e.message}); used keyword matching instead]`;
-      }
-      if (r) {
-        if (!r.items.length) throw new ToolError('find_no_match', r.error || `No elements matching "${query}" found.`);
-        const more = r.more || r.total > r.items.length ? ` (showing first ${r.items.length}, use a more specific query to narrow results)` : '';
-        const lines = r.items.map((m) => `- ${m.ref}: ${m.role}${m.name ? ` "${m.name}"` : ''}${m.type ? ` (${m.type})` : ''}${m.reason ? ` - ${m.reason}` : ''}`);
-        return { output: `Found ${r.total} matching element${r.total === 1 ? '' : 's'}${more}\n\n${lines.join('\n')}` };
-      }
-    }
     const { total, items } = await agent(tabId, 'find', { query, limit: 20 });
     if (!items.length) {
-      throw new ToolError('find_no_match', `No elements matching "${query}" found. Try different keywords, or use read_page to inspect the page.${fallbackNote}`);
+      const { pageContent } = await agent(tabId, 'accessibilityTree', { filter: 'interactive', maxChars: CANDIDATES_MAX_CHARS });
+      if (!pageContent.trim()) {
+        throw new ToolError('find_no_match', `No elements matching "${query}" found. Try different keywords, or use read_page to inspect the page.`);
+      }
+      return {
+        output: `No element text matched "${query}". These are the interactive elements currently in view; pick the one that fits the description yourself (refs work with the other tools):\n\n${pageContent}`,
+      };
     }
     const more = total > items.length ? ` (showing first ${items.length}, use a more specific query to narrow results)` : '';
     const lines = items.map((m) => `- ${m.ref}: ${m.role}${m.name ? ` "${m.name.replace(/\s+/g, ' ').slice(0, 100)}"` : ''}${m.type ? ` (${m.type})` : ''}${m.hidden ? ' [not visible]' : ''}`);
-    return { output: `Found ${total} matching element${total === 1 ? '' : 's'}${more}\n\n${lines.join('\n')}${fallbackNote}` };
+    return { output: `Found ${total} matching element${total === 1 ? '' : 's'}${more}\n\n${lines.join('\n')}` };
   },
 
   async form_input({ tabId, ref, value }, ctx) {

@@ -27,5 +27,4 @@ MCP 服务已注册到 Claude Code。接下来：
   1. 打开 Chrome，进入 chrome://extensions，打开右上角的「开发者模式」
   2. 点「加载已解压的扩展程序」，选择目录：$DIR/extension
   3. 重启 Claude Code
-可选：点扩展图标里的「设置」，填写 OpenAI 兼容接口，让 find 支持自然语言查找。
 EOF

@@ -37,6 +37,8 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 });
 chrome.runtime.onStartup.addListener(() => bridge.ensureConnected());
 chrome.runtime.onInstalled.addListener(() => bridge.ensureConnected());
+// 0.7.5 及以前可以在设置页填写外部 AI 接口（地址、Key、模型），现在不再需要：安装或升级时清掉留在本机的配置
+chrome.runtime.onInstalled.addListener(() => chrome.storage.local.remove('aiConfig').catch(() => {}));
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   // 发给离屏文档的消息由它自己处理

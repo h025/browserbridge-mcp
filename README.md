@@ -76,7 +76,7 @@ claude mcp add browser-bridge -s user -- node "$(pwd)/src/cli.js"
 
 其他说明：
 
-- `find`：可选接入自己的 AI 接口理解自然语言（见下文「AI 元素查找」），未配置时用本地关键词匹配。
+- `find`：按文字做关键词匹配，匹配不上时把屏幕上的可交互元素交给 agent 自己挑。
 - 不需要账号，也没有网站权限弹窗。
 - `gif_creator` 的 `download: true` 由 MCP 服务把 GIF 写到本地磁盘并返回路径。
 - 对话框处理：Claude 执行操作期间页面弹出的 alert 自动确认、confirm/prompt 自动取消（否则页面会被阻塞），并在结果中提示；Claude 空闲时出现的对话框（可能是你自己的操作）留给你处理，Claude 下次操作该标签页时若仍未关闭才自动处理。
@@ -97,21 +97,11 @@ node scripts/package.mjs
 
 扩展和 MCP 服务的版本号需一致（`extension/manifest.json` 与 `mcp-server/package.json`），否则打包脚本会报错。
 
-**自动发布**：推送到 `main` 后，GitHub Actions（`.github/workflows/release.yml`）会自动打包，把 zip 安装包发布到 [Releases](https://github.com/h025/browserbridge-mcp/releases) 的 `v<版本号>`。版本号没变时更新同一个 Release（替换安装包），要发新版本先改版本号再推送。npm 上还没有这个版本时，同时发布 [@h025/browserbridge-mcp](https://www.npmjs.com/package/@h025/browserbridge-mcp)：使用 npm 受信发布（npmjs.com 上信任本仓库的 `release.yml`），不需要 npm 令牌，并自动附带来源证明。包里不含任何 AI 接口配置，由使用者在扩展的「设置」里自行填写。
+**自动发布**：推送到 `main` 后，GitHub Actions（`.github/workflows/release.yml`）会自动打包，把 zip 安装包发布到 [Releases](https://github.com/h025/browserbridge-mcp/releases) 的 `v<版本号>`。版本号没变时更新同一个 Release（替换安装包），要发新版本先改版本号再推送。npm 上还没有这个版本时，同时发布 [@h025/browserbridge-mcp](https://www.npmjs.com/package/@h025/browserbridge-mcp)：使用 npm 受信发布（npmjs.com 上信任本仓库的 `release.yml`），不需要 npm 令牌，并自动附带来源证明。
 
 ## 在其他 MCP 客户端中使用
 
 MCP 服务是标准 stdio 服务，Claude 桌面版、Codex、Cursor、VS Code 等都能用：在客户端的 MCP 配置里把命令设为 node 的绝对路径、参数设为服务文件的绝对路径即可。各客户端的配置示例见 `packaging/README.md`（安装包里的 `README.md`）。
-
-## AI 元素查找（可选）
-
-点扩展图标里的「设置」（或在 `chrome://extensions` 中打开扩展的「扩展程序选项」），在「AI 元素查找」中填写 OpenAI 兼容接口：
-
-- **接口地址**：如 `https://api.openai.com/v1`；只填域名时自动补 `/v1/chat/completions`，也可填完整地址。
-- **API Key**：只保存在本机浏览器（`chrome.storage.local`），本机模型（如 Ollama）可留空。
-- **模型**：接口支持的模型名。
-
-填写后可点「测试连接」确认。启用后，`find` 会把页面的可访问性树（密码、验证码、信用卡等字段已脱敏）和查询发给该模型，返回匹配的元素和理由，例如“拖放文件的区域”“提交新故事的链接”这类关键词匹配不到的描述也能找到；模型编造的 ref 会被过滤。未填写、调用失败或超时（60 秒）时自动退回本地关键词匹配，并在结果里注明原因。
 
 ## 界面语言
 
@@ -165,8 +155,7 @@ extension/
   src/i18n.js            界面文字的取用与填充
   offscreen.html / .js   离屏文档：GIF 合成编码、Service Worker 保活
   vendor/gifenc.js       GIF 编码库（gifenc 1.0.3，MIT）
-  src/ai.js              可选的 AI 元素查找（OpenAI 兼容接口）
-  options.html / .js     AI 接口设置页
+  options.html / .js     设置页（打字方式）
   popup.html / popup.js  连接状态、端口设置、共享当前标签页、当前查找模式
 mcp-server/
   src/cli.js             命令行入口：启动服务 / 导出扩展 / 版本
