@@ -72,16 +72,14 @@ try {
   await call('read_page', { tabId, filter: 'interactive', max_chars: 100 }, { quiet: true });
   const user = await userPage('test.html');
   await sleep(300);
-  const before = await user.edgeColor();
+  const before = await user.edgeSaturation();
   const browser = await browserSession();
   const { targetInfos } = await browser.send('Target.getTargets');
   const sw = targetInfos.find((x) => x.type === 'service_worker' && x.url.startsWith(`chrome-extension://${EXT_ID}/`));
   await browser.send('Target.closeTarget', { targetId: sw.targetId });
   await sleep(8000);
-  const after = await user.edgeColor();
-  // 光晕颜色在旋转，按饱和度判断：显示时边缘是彩色，隐藏后是白色
-  const saturation = (rgb) => Math.max(...rgb) - Math.min(...rgb);
-  expect(saturation(before) > 60 && saturation(after) < 15, 'Service Worker 重启后页面指示器自行隐藏');
+  const after = await user.edgeSaturation();
+  expect(before > 60 && after < 15, `Service Worker 重启后页面指示器自行隐藏（边缘饱和度 ${before} → ${after}）`);
   expect(!(await call('read_page', { tabId, filter: 'interactive', max_chars: 100 }, { quiet: true })).isError, 'Service Worker 重启后工具照常可用');
   browser.close();
   user.close();

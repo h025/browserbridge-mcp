@@ -5,14 +5,12 @@ import { HERE, setup, sleep, userPage } from './harness.mjs';
 
 const t = await setup();
 const { call, js, refOf, expect } = t;
-// 指示器是彩色渐变，按饱和度判断；白色页面边缘的饱和度接近 0
-const isColorful = (rgb) => Math.max(...rgb) - Math.min(...rgb) > 60;
 try {
   const tabId = JSON.parse((await call('tabs_context_mcp', { createIfEmpty: true })).t).availableTabs[0].tabId;
   await call('navigate', { tabId, url: 'http://127.0.0.1:18801/test.html' });
   const user = await userPage('test.html');
   await sleep(500);
-  expect(isColorful(await user.edgeColor()), '执行工具时页面显示彩色渐变边框');
+  expect((await user.edgeSaturation()) > 60, '执行工具时页面四周显示彩色光晕');
 
   const vp = JSON.parse(await js(tabId, '({ w: innerWidth, h: innerHeight })'));
   const shot = await call('computer', { tabId, action: 'screenshot' });
@@ -64,7 +62,7 @@ try {
   const user2 = await userPage('test.html');
   console.log('  等待 22 秒空闲释放…');
   await sleep(22_000);
-  expect(!isColorful(await user2.edgeColor()), '空闲 20 秒后指示器消失');
+  expect((await user2.edgeSaturation()) < 15, '空闲 20 秒后指示器消失');
   expect(!(await call('read_page', { tabId, filter: 'interactive', max_chars: 200 }, { quiet: true })).isError, '释放后再次调用自动重新附加');
   user2.close();
 } catch (e) {

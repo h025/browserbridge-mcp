@@ -1,4 +1,4 @@
-// 页面上的活动指示器：沿屏幕四周缓慢旋转、带呼吸节奏的彩色光晕（外层宽光晕 + 贴边亮色光带），以及渐变光标。
+// 页面上的活动指示器：沿屏幕四周旋转、带呼吸节奏的多层彩色光晕（各层宽度、速度、方向不同），以及渐变光标。
 // 全部放在 closed shadow root 里，不影响页面样式，也不会出现在可访问性树中。
 (() => {
   if (window.__bbIndicator) return;
@@ -13,6 +13,27 @@
   let hiddenForTool = false;
   let restoreTimer = null;
   let heartbeat = null;
+
+  // 光晕各层和光标共用一个呼吸节奏：周期相同，并且都按同一个时钟对齐相位（后出现的元素从当前进度接着呼吸）
+  const BREATH_MS = 3200;
+  const breathPhase = () => `${-(Date.now() % BREATH_MS) / 1000}s`;
+
+  // 光标：通透的蓝紫水晶（鼓鼓的光影、彩虹细边、圆润的尖端），由光标调整工具按最终参数生成；
+  // 实际大小 27px，圆角尖端的顶点（距左上角 3.07px）对准光标位置，呼吸时以尖端为中心放大缩小
+  const CURSOR_TIP = 3.07;
+  const CURSOR_SVG = `<svg width="26.6" height="26.6" viewBox="0 0 24.6 24.6" style="overflow:visible;margin-left:-${CURSOR_TIP}px;margin-top:-${CURSOR_TIP}px;transform-origin:${CURSOR_TIP}px ${CURSOR_TIP}px">` +
+    '<defs><clipPath id="bbcc"><path d="M5.10 3.07 L19.83 9.24 Q22.60 10.40 19.76 11.37 L16.74 12.42 Q13.52 13.52 12.42 16.74 L11.37 19.76 Q10.40 22.60 9.24 19.83 L3.07 5.10 Q1.60 1.60 5.10 3.07 Z"/></clipPath><filter id="bbcs" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation=".8"/></filter><filter id="bbcS" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="1.7"/></filter><filter id="bbch" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation=".5"/></filter><radialGradient id="bbcb" cx=".34" cy=".3" r=".8"><stop offset="0" stop-color="#F0F9FF" stop-opacity="0.576"/><stop offset=".3" stop-color="#7DD3FC" stop-opacity="0.44639999999999996"/><stop offset=".7" stop-color="#818CF8" stop-opacity="0.3744"/><stop offset="1" stop-color="#9333EA" stop-opacity="0.48960000000000004"/></radialGradient><radialGradient id="bbcpearl" cx=".7" cy=".7" r=".6"><stop offset="0" stop-color="#F9A8D4" stop-opacity=".6"/><stop offset=".5" stop-color="#A5F3FC" stop-opacity=".4"/><stop offset="1" stop-color="#C4B5FD" stop-opacity="0"/></radialGradient><linearGradient id="bbci" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#60A5FA" stop-opacity="1"/><stop offset="0.5" stop-color="#A78BFA" stop-opacity="1"/><stop offset="1" stop-color="#F472B6" stop-opacity="1"/></linearGradient><linearGradient id="bbcbev" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.81"/><stop offset="0.45" stop-color="#fff" stop-opacity="0.108"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient><linearGradient id="bbccandy" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.75"/><stop offset="1" stop-color="#fff" stop-opacity="0.06"/></linearGradient><linearGradient id="bbcflow" x1="0" y1="0" x2="1" y2="0.4"><stop offset="0" stop-color="#22D3EE" stop-opacity="0"/><stop offset="0.35" stop-color="#22D3EE" stop-opacity="0.55"/><stop offset="0.55" stop-color="#A78BFA" stop-opacity="0.6"/><stop offset="0.75" stop-color="#F472B6" stop-opacity="0.55"/><stop offset="1" stop-color="#F472B6" stop-opacity="0"/></linearGradient></defs><path d="M5.10 3.07 L19.83 9.24 Q22.60 10.40 19.76 11.37 L16.74 12.42 Q13.52 13.52 12.42 16.74 L11.37 19.76 Q10.40 22.60 9.24 19.83 L3.07 5.10 Q1.60 1.60 5.10 3.07 Z" fill="#9333EA" opacity="0.28" transform="translate(1.2 2.2)" filter="url(#bbcS)"/><path d="M5.10 3.07 L19.83 9.24 Q22.60 10.40 19.76 11.37 L16.74 12.42 Q13.52 13.52 12.42 16.74 L11.37 19.76 Q10.40 22.60 9.24 19.83 L3.07 5.10 Q1.60 1.60 5.10 3.07 Z" fill="url(#bbcb)"/><g clip-path="url(#bbcc)"><path d="M5.10 3.07 L19.83 9.24 Q22.60 10.40 19.76 11.37 L16.74 12.42 Q13.52 13.52 12.42 16.74 L11.37 19.76 Q10.40 22.60 9.24 19.83 L3.07 5.10 Q1.60 1.60 5.10 3.07 Z" fill="none" stroke="#9333EA" stroke-opacity="0.5" stroke-width="3" transform="translate(-.9 -1.1)" filter="url(#bbcs)"/><path d="M5.10 3.07 L19.83 9.24 Q22.60 10.40 19.76 11.37 L16.74 12.42 Q13.52 13.52 12.42 16.74 L11.37 19.76 Q10.40 22.60 9.24 19.83 L3.07 5.10 Q1.60 1.60 5.10 3.07 Z" fill="none" stroke="#fff" stroke-opacity="0.7" stroke-width="2.2" transform="translate(.8 1)" filter="url(#bbcs)"/><path d="M5.10 3.07 L19.83 9.24 Q22.60 10.40 19.76 11.37 L16.74 12.42 Q13.52 13.52 12.42 16.74 L11.37 19.76 Q10.40 22.60 9.24 19.83 L3.07 5.10 Q1.60 1.60 5.10 3.07 Z" fill="none" stroke="url(#bbcbev)" stroke-width="1.80"/><ellipse cx="12.8" cy="17.8" rx="1.2" ry="3" transform="rotate(20 12.8 17.8)" fill="#fff" opacity="0.35" filter="url(#bbch)"/><ellipse cx="9" cy="6.8" rx="4.6" ry="1.9" transform="rotate(24 9 6.8)" fill="#fff" opacity="0.55" filter="url(#bbch)"/></g><path d="M5.10 3.07 L19.83 9.24 Q22.60 10.40 19.76 11.37 L16.74 12.42 Q13.52 13.52 12.42 16.74 L11.37 19.76 Q10.40 22.60 9.24 19.83 L3.07 5.10 Q1.60 1.60 5.10 3.07 Z" fill="none" stroke="url(#bbci)" stroke-width="0.9" stroke-opacity=".9"/><path d="M5.10 3.07 L19.83 9.24 Q22.60 10.40 19.76 11.37 L16.74 12.42 Q13.52 13.52 12.42 16.74 L11.37 19.76 Q10.40 22.60 9.24 19.83 L3.07 5.10 Q1.60 1.60 5.10 3.07 Z" fill="none" stroke="#fff" stroke-width="0.45" stroke-opacity=".95"/><ellipse cx="6.83" cy="7.33" rx=".95" ry="2.1" transform="rotate(-26 6.83 7.33)" fill="#fff" opacity="0.95"/></svg>';
+
+  // 页面四周的光晕（光标调整工具里定下的参数），从外到内：淡淡的彩虹光雾 → 暖色光雾 → 贴边的冷色光；
+  // 越靠边越窄、越清晰、转得越快，方向交替，看起来像光从屏幕边缘发出来
+  const HALO_LAYERS = [
+    { w: 60, blur: 24, op: 0.42, dur: 10, dir: 'normal',
+      bg: 'conic-gradient(#3B82F6, #8B5CF6 18%, rgba(139,92,246,.6) 30%, #EC4899 44%, #F59E0B 58%, rgba(245,158,11,.6) 70%, #22D3EE 84%, #3B82F6)' },
+    { w: 36, blur: 12, op: 0.5, dur: 7, dir: 'reverse',
+      bg: 'conic-gradient(#F472B6, #FB923C 22%, rgba(251,146,60,.55) 38%, #FACC15 52%, #F472B6 72%, rgba(244,114,182,.55) 86%, #F472B6)' },
+    { w: 20, blur: 6, op: 0.65, dur: 4.5, dir: 'normal',
+      bg: 'conic-gradient(#22D3EE, #3B82F6 24%, rgba(59,130,246,.55) 40%, #8B5CF6 56%, #22D3EE 80%, rgba(34,211,238,.55) 90%, #22D3EE)' },
+  ];
 
   // 显示期间每 5 秒确认一次：扩展后台重启或已释放该标签页时自行隐藏；被页面移除时重新挂上
   function startHeartbeat() {
@@ -38,33 +59,24 @@
       style.textContent = `
         :host { all: initial !important; display: contents !important; }
         @keyframes bb-spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
-        /* 呼吸：放大时光环往屏幕外推、变窄变淡，回到原大小时变宽变亮 */
-        @keyframes bb-breathe-aura { 0%, 100% { opacity: .6; transform: scale(1.06); } 50% { opacity: 1; transform: scale(1); } }
-        @keyframes bb-breathe-edge { 0%, 100% { opacity: .75; } 50% { opacity: 1; } }
+        /* 多层光晕：每层是一圈旋转的彩色光环，宽度、模糊、速度、方向各不相同，颜色互相交错流动。
+           呼吸：放大时光环往屏幕外推、变窄变淡，回到原大小时变宽变亮；放大比例由 sizeLayers() 按像素算好（--bx/--by），
+           每层只往外推自身宽度的四分之一，窄的贴边光不会被推出屏幕 */
+        @keyframes bb-breathe-layer { 0%, 100% { opacity: calc(var(--op) * .75); transform: scale(var(--bx, 1), var(--by, 1)); } 50% { opacity: var(--op); transform: scale(1); } }
         .border { position: fixed; inset: 0; pointer-events: none; z-index: 2147483646; opacity: 0; transition: opacity .4s ease-in-out; }
-        /* 外层光晕：比屏幕大一圈的彩色光环整体模糊，一半在屏幕外，屏幕内是柔和、圆角的宽光晕 */
-        .aura { position: absolute; inset: -48px; filter: blur(26px); animation: bb-breathe-aura 3.2s ease-in-out infinite; }
-        .aura .ring { --t: 100px; }
-        /* 贴边光带：两道亮色光束沿四边追逐，转得比外层快，一眼能看出在绕圈 */
-        .edge { position: absolute; inset: 0; filter: blur(2px); animation: bb-breathe-edge 3.2s ease-in-out infinite; }
-        .edge .ring { --t: 6px; }
-        .edge .ring::before { animation-duration: 3.5s;
-          background: conic-gradient(transparent 0deg, #3B82F6 50deg, #A78BFA 95deg, transparent 140deg, transparent 180deg,
-            #EC4899 230deg, #FBBF24 275deg, transparent 320deg); }
-        /* 光环：只保留四周宽 --t 的一圈，里面是旋转的彩色圆盘（比对角线还大，转起来四边始终被覆盖） */
-        .ring { position: absolute; inset: 0; padding: var(--t); overflow: hidden;
+        /* 光环一半在屏幕外，屏幕内是柔和、圆角的光晕 */
+        .layer { position: absolute; inset: calc(var(--w) * -.5); filter: blur(var(--blur)); animation: bb-breathe-layer ${BREATH_MS}ms ease-in-out infinite; }
+        /* 只保留四周宽 --w 的一圈，里面是旋转的彩色圆盘（比对角线还大，转起来四边始终被覆盖） */
+        .ring { position: absolute; inset: 0; padding: var(--w); overflow: hidden;
           -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
-        /* 外层的颜色有明有暗，亮色块沿四周移动，旋转更容易看出来 */
         .ring::before { content: ""; position: absolute; top: 50%; left: 50%; width: 170vmax; height: 170vmax;
-          transform: translate(-50%, -50%); animation: bb-spin 6s linear infinite;
-          background: conic-gradient(#3B82F6, #8B5CF6 18%, rgba(139,92,246,.35) 30%, #EC4899 44%, #F59E0B 58%,
-            rgba(245,158,11,.35) 70%, #22D3EE 84%, #3B82F6); }
-        @media (prefers-reduced-motion: reduce) { .aura, .edge, .ring::before, .cursor svg { animation: none; } }
+          transform: translate(-50%, -50%); animation: bb-spin var(--dur) linear infinite; animation-direction: var(--dir); background: var(--bg); }
+        @media (prefers-reduced-motion: reduce) { .layer, .ring::before, .cursor svg { animation: none; } }
         .cursor { position: fixed; top: 0; left: 0; pointer-events: none; z-index: 2147483646; will-change: transform;
-          transition: transform 180ms cubic-bezier(.2, 0, 0, 1); filter: drop-shadow(0 2px 4px rgba(139,92,246,.45)); }
+          transition: transform 180ms cubic-bezier(.2, 0, 0, 1); }
         /* 光标随光晕的呼吸节奏轻轻放大缩小（以尖端为中心，不影响指向的位置） */
         @keyframes bb-cursor-bob { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
-        .cursor svg { transform-origin: 0 0; animation: bb-cursor-bob 3.2s ease-in-out infinite; }
+        .cursor svg { display: block; animation: bb-cursor-bob ${BREATH_MS}ms ease-in-out infinite; }
       `;
       root.appendChild(style);
       layer = document.createElement('div');
@@ -79,18 +91,20 @@
     const wrap = document.createElement('div');
     wrap.className = 'cursor';
     wrap.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-    // 圆润的箭头（尖端、底角、右角都是圆的）+ 柔和渐变 + 白色粗描边 + 尖端附近一点高光；尖端对准 (0, 0)
-    wrap.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" style="overflow:visible">
-      <defs><linearGradient id="bb-cursor-grad" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stop-color="#60A5FA"/><stop offset=".5" stop-color="#A78BFA"/><stop offset="1" stop-color="#F472B6"/>
-      </linearGradient></defs>
-      <g transform="translate(-1.6 -2.4)">
-        <path d="M3.1 2.6C2 2.1.9 3.1 1.3 4.2l6.4 18c.4 1.2 2.1 1.2 2.6.1l2.6-6.3c.2-.5.6-.9 1.1-1.1l6.3-2.6c1.1-.5 1.1-2.2-.1-2.6Z"
-          fill="url(#bb-cursor-grad)" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"/>
-        <ellipse cx="5.6" cy="7.6" rx="1.4" ry="2.4" transform="rotate(-24 5.6 7.6)" fill="#fff" opacity=".55"/>
-      </g></svg>`;
+    wrap.innerHTML = CURSOR_SVG;
+    wrap.firstElementChild.style.animationDelay = breathPhase();
     return wrap;
   }
+
+  // 呼吸时每层往外推固定的像素（自身宽度的四分之一），换算成横向、纵向各自的放大比例
+  function sizeLayers() {
+    for (const el of border?.querySelectorAll('.layer') || []) {
+      const w = Number(el.dataset.w); const push = w / 4;
+      el.style.setProperty('--bx', String(1 + (2 * push) / (innerWidth + w)));
+      el.style.setProperty('--by', String(1 + (2 * push) / (innerHeight + w)));
+    }
+  }
+  addEventListener('resize', () => { if (active) sizeLayers(); });
 
   function show() {
     active = true;
@@ -99,7 +113,10 @@
     if (!border) {
       border = document.createElement('div');
       border.className = 'border';
-      border.innerHTML = '<div class="aura"><div class="ring"></div></div><div class="edge"><div class="ring"></div></div>';
+      const delay = breathPhase();
+      border.innerHTML = HALO_LAYERS.map((l) =>
+        `<div class="layer" data-w="${l.w}" style="--w:${l.w}px;--blur:${l.blur}px;--op:${l.op};--dur:${l.dur}s;--dir:${l.dir};--bg:${l.bg};animation-delay:${delay}"><div class="ring"></div></div>`).join('');
+      sizeLayers();
       r.appendChild(border);
     }
     if (!cursor) {
@@ -128,9 +145,10 @@
   }
 
   // 截图时整体隐藏；点击时只隐藏边框，保留光标
+  // 用 visibility 而不是 display：display: none 会让光晕和光标的动画从头开始，每次点击、截图后边缘都会跳一下
   function applyVisibility(hideAll = false) {
-    if (layer) layer.style.display = hiddenForTool && hideAll ? 'none' : '';
-    if (border) border.style.display = hiddenForTool ? 'none' : '';
+    if (layer) layer.style.visibility = hiddenForTool && hideAll ? 'hidden' : '';
+    if (border) border.style.visibility = hiddenForTool ? 'hidden' : '';
   }
 
   function moveCursor(x, y) {

@@ -171,7 +171,12 @@ export async function userPage(match) {
     const { data } = await send('Page.captureScreenshot', { format: 'png', clip: { x: 0, y: 300, width: 4, height: 4, scale: 1 } });
     return evaluate(`(async () => { const b = await (await fetch('data:image/png;base64,${data}')).blob(); const bm = await createImageBitmap(b); const c = new OffscreenCanvas(bm.width, bm.height); const x = c.getContext('2d'); x.drawImage(bm, 0, 0); return Array.from(x.getImageData(1, 1, 1, 1).data.slice(0, 3)); })()`);
   };
-  return { send, evaluate, edgeColor, close: () => ws.close() };
+  // 沿左边缘取一列点，返回其中最高的饱和度：光晕显示时边缘是彩色（多层光晕颜色在转，单点可能刚好偏淡），隐藏后是白色
+  const edgeSaturation = async () => {
+    const { data } = await send('Page.captureScreenshot', { format: 'png', clip: { x: 0, y: 0, width: 4, height: 500, scale: 1 } });
+    return evaluate(`(async () => { const bm = await createImageBitmap(await (await fetch('data:image/png;base64,${data}')).blob()); const c = new OffscreenCanvas(bm.width, bm.height); const x = c.getContext('2d'); x.drawImage(bm, 0, 0); let best = 0; for (let y = 10; y < bm.height; y += 15) { const d = x.getImageData(1, y, 1, 1).data; best = Math.max(best, Math.max(d[0], d[1], d[2]) - Math.min(d[0], d[1], d[2])); } return best; })()`);
+  };
+  return { send, evaluate, edgeColor, edgeSaturation, close: () => ws.close() };
 }
 
 // 用新标签页打开 URL（例如扩展的设置页），返回该页面的调试连接
