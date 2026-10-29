@@ -1,0 +1,34 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Bridge 测试页</title>
+<style>body{font-family:sans-serif;padding:20px} .card{cursor:pointer;padding:10px;border:1px solid #ccc;width:200px;margin:8px 0} #filebtn{display:none} .tall{height:2000px}</style>
+</head><body>
+<h1>测试表单</h1>
+<main>
+<p>这是一段正文内容，用于测试 get_page_text 的提取功能。这里有足够多的文字来超过两百个字符的阈值。Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+<form id="f" onsubmit="event.preventDefault(); document.getElementById('out').textContent='submitted:'+document.getElementById('email').value">
+  <label for="email">邮箱地址</label> <input id="email" type="email" placeholder="you@example.com">
+  <label><input id="agree" type="checkbox"> 同意条款</label>
+  <select id="city"><option value="bj">北京</option><option value="sh">上海</option><option value="gz">广州</option></select>
+  <textarea id="note" aria-label="备注"></textarea>
+  <input id="filebtn" type="file" multiple>
+  <button type="submit">提交表单</button>
+</form>
+<div class="card" id="card" onclick="this.textContent='卡片已点击 '+(window.__n=(window.__n||0)+1)">可点击卡片</div>
+<div id="drop" style="width:300px;height:60px;border:1px dashed #999">拖放区</div>
+<div id="out">未提交</div>
+<div id="keys"></div>
+<a id="styled" href="#styled"><style>.styled-x{color:red}</style>样式链接</a> <a href="#bottom">跳到底部</a> <a id="newtab" href="/test.html?opened" target="_blank">在新标签页打开</a>
+</main>
+<div class="tall"></div>
+<div id="bottom">底部区域</div>
+<script>
+console.log('page loaded', 42);
+console.error('test error message');
+document.getElementById('note').addEventListener('keydown', e => { document.getElementById('keys').textContent += e.key + ','; });
+document.getElementById('filebtn').addEventListener('change', e => { document.getElementById('out').textContent = 'files:' + [...e.target.files].map(f => f.name).join(','); });
+const dz = document.getElementById('drop');
+dz.addEventListener('dragover', e => e.preventDefault());
+dz.addEventListener('drop', e => { e.preventDefault(); document.getElementById('out').textContent = 'dropped:' + [...e.dataTransfer.files].map(f => f.name + '/' + f.type + '/' + f.size).join(','); });
+fetch('/api/ping?x=1').then(r => r.text()).then(t => console.log('fetched', t));
+</script>
+</body></html>

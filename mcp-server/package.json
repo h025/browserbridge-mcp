@@ -1,0 +1,48 @@
+{
+  "name": "browserbridge-mcp",
+  "version": "0.7.0",
+  "description": "Let Claude Code and other MCP clients drive your local Chrome, no account sign-in needed (Chrome extension included). 让 Claude Code 等 MCP 客户端操作本机 Chrome，无需登录。",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "chrome",
+    "browser",
+    "automation",
+    "claude",
+    "claude-code"
+  ],
+  "license": "MIT",
+  "author": "h025",
+  "homepage": "https://github.com/h025/browserbridge-mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/h025/browserbridge-mcp.git",
+    "directory": "mcp-server"
+  },
+  "bugs": {
+    "url": "https://github.com/h025/browserbridge-mcp/issues"
+  },
+  "type": "module",
+  "bin": {
+    "browserbridge-mcp": "dist/browser-bridge-mcp.mjs"
+  },
+  "files": [
+    "dist/browser-bridge-mcp.mjs",
+    "dist/extension",
+    "README.md"
+  ],
+  "scripts": {
+    "start": "node src/cli.js",
+    "build": "node scripts/build.mjs",
+    "prepack": "node scripts/build.mjs",
+    "package": "node ../scripts/package.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "esbuild": "^0.25.11",
+    "ws": "^8.22.0"
+  }
+}

@@ -1,0 +1,240 @@
+{
+  "extName": {
+    "message": "Browser Bridge for Claude Code"
+  },
+  "extDescription": {
+    "message": "通过本机 MCP 服务让 Claude Code 等客户端操作浏览器，无需登录任何账号。"
+  },
+  "stopButton": {
+    "message": "停止"
+  },
+  "stopSent": {
+    "message": "已发送停止请求，下一步操作前会停下"
+  },
+  "stopFailed": {
+    "message": "停止请求没有送达，请在客户端里中断（Claude Code 中按 Esc）"
+  },
+  "gifClick": {
+    "message": "已点击"
+  },
+  "gifType": {
+    "message": "输入：“$TEXT$”",
+    "placeholders": {
+      "text": {
+        "content": "$1"
+      }
+    }
+  },
+  "gifKey": {
+    "message": "按键：$KEYS$",
+    "placeholders": {
+      "keys": {
+        "content": "$1"
+      }
+    }
+  },
+  "gifScroll": {
+    "message": "已滚动"
+  },
+  "gifDrag": {
+    "message": "已拖拽"
+  },
+  "gifZoom": {
+    "message": "已放大"
+  },
+  "gifNavigate": {
+    "message": "打开 $URL$",
+    "placeholders": {
+      "url": {
+        "content": "$1"
+      }
+    }
+  },
+  "connectFailed": {
+    "message": "无法连接 $URL$（MCP 服务未运行？）",
+    "placeholders": {
+      "url": {
+        "content": "$1"
+      }
+    }
+  },
+  "checking": {
+    "message": "检测中…"
+  },
+  "stateConnected": {
+    "message": "已连接 MCP 服务"
+  },
+  "stateConnecting": {
+    "message": "正在连接…"
+  },
+  "stateDisconnected": {
+    "message": "未连接"
+  },
+  "stateWithPort": {
+    "message": "$STATE$（端口 $PORT$）",
+    "placeholders": {
+      "state": {
+        "content": "$1"
+      },
+      "port": {
+        "content": "$2"
+      }
+    }
+  },
+  "waitingServer": {
+    "message": "等待 MCP 服务启动（启动 Claude Code 等客户端后自动连接）"
+  },
+  "portLabel": {
+    "message": "MCP 服务端口"
+  },
+  "save": {
+    "message": "保存"
+  },
+  "reconnect": {
+    "message": "重连"
+  },
+  "shareTab": {
+    "message": "交出当前标签页"
+  },
+  "shareDone": {
+    "message": "已交出（tabId $ID$）",
+    "placeholders": {
+      "id": {
+        "content": "$1"
+      }
+    }
+  },
+  "shareFailed": {
+    "message": "失败：$ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1"
+      }
+    }
+  },
+  "groupHint": {
+    "message": "只能操作 “Browser Bridge” 标签组里的标签页，也可以直接把标签页拖进该组。"
+  },
+  "findModeLoading": {
+    "message": "元素查找：…"
+  },
+  "findModeAi": {
+    "message": "元素查找：AI（$MODEL$）",
+    "placeholders": {
+      "model": {
+        "content": "$1"
+      }
+    }
+  },
+  "findModeKeyword": {
+    "message": "元素查找：关键词匹配"
+  },
+  "settings": {
+    "message": "设置"
+  },
+  "optionsTitle": {
+    "message": "Browser Bridge 设置"
+  },
+  "aiSection": {
+    "message": "AI 元素查找"
+  },
+  "aiLead": {
+    "message": "用于 find（查找页面元素）：填写 OpenAI 兼容接口后由模型理解自然语言查询，例如“提交订单的按钮”；不填写则使用本地关键词匹配。"
+  },
+  "aiBaseUrl": {
+    "message": "接口地址"
+  },
+  "aiBaseUrlHelp": {
+    "message": "OpenAI 兼容接口，例如 https://api.openai.com/v1；只填域名时自动补 /v1，也可填完整的 …/chat/completions"
+  },
+  "aiApiKey": {
+    "message": "API Key"
+  },
+  "aiApiKeyHelp": {
+    "message": "只保存在本机浏览器中；本机模型（如 Ollama）可留空"
+  },
+  "aiModel": {
+    "message": "模型"
+  },
+  "aiModelHelp": {
+    "message": "接口支持的模型名，例如 gpt-4o-mini"
+  },
+  "show": {
+    "message": "显示"
+  },
+  "hide": {
+    "message": "隐藏"
+  },
+  "testConnection": {
+    "message": "测试连接"
+  },
+  "clearConfig": {
+    "message": "清除配置"
+  },
+  "aiPrivacy": {
+    "message": "启用后，find 会把当前页面的可访问性树（密码、验证码、信用卡等字段已脱敏）发送到上面的接口。"
+  },
+  "modeAi": {
+    "message": "当前：find 使用 AI 匹配（模型 $MODEL$）",
+    "placeholders": {
+      "model": {
+        "content": "$1"
+      }
+    }
+  },
+  "modeKeyword": {
+    "message": "当前：find 使用本地关键词匹配"
+  },
+  "errNoBaseUrl": {
+    "message": "请填写接口地址"
+  },
+  "errScheme": {
+    "message": "接口地址需要以 http:// 或 https:// 开头"
+  },
+  "errNoModel": {
+    "message": "请填写模型名"
+  },
+  "errNeedConfig": {
+    "message": "请先填写接口地址和模型"
+  },
+  "cleared": {
+    "message": "已清除，find 将使用本地关键词匹配。"
+  },
+  "saved": {
+    "message": "已保存。find 将使用 AI 匹配，建议点“测试连接”确认可用。"
+  },
+  "testOk": {
+    "message": "连接成功，模型回复：$REPLY$",
+    "placeholders": {
+      "reply": {
+        "content": "$1"
+      }
+    }
+  },
+  "testEmpty": {
+    "message": "（空）"
+  },
+  "testFailed": {
+    "message": "连接失败：$ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1"
+      }
+    }
+  },
+  "inputSection": {
+    "message": "输入"
+  },
+  "humanTyping": {
+    "message": "模拟真人打字节奏"
+  },
+  "humanTypingHelp": {
+    "message": "逐字输入，字符之间随机间隔几十毫秒（长文本会自动加快，一次输入约 12 秒内完成）。部分网站会把瞬间打完的输入判定为机器人并弹出验证码；关闭后输入更快。"
+  },
+  "humanTypingOn": {
+    "message": "已开启：输入时模拟真人打字节奏。"
+  },
+  "humanTypingOff": {
+    "message": "已关闭：输入时一次性快速输入。"
+  }
+}

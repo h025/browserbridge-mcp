@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Browser Bridge</title>
+  <style>
+    :root { color-scheme: light dark; --gradient: linear-gradient(90deg, #3B82F6, #8B5CF6, #EC4899, #F59E0B); --accent: #8B5CF6; --muted: #888; }
+    body { width: 280px; margin: 0; padding: 14px; font: 13px/1.5 -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif; }
+    h1 { display: flex; align-items: center; gap: 8px; font-size: 14px; margin: 0 0 10px; }
+    h1 img { width: 20px; height: 20px; }
+    h1 span { background: var(--gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .status { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; background: rgba(127,127,127,.12); }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: #c33; flex: none; }
+    .dot.connected { background: #10B981; }
+    .dot.connecting { background: #F59E0B; }
+    .err { color: var(--muted); font-size: 12px; margin-top: 6px; word-break: break-all; }
+    label { display: block; margin-top: 12px; color: var(--muted); font-size: 12px; }
+    .row { display: flex; gap: 6px; margin-top: 4px; }
+    input { flex: 1; min-width: 0; padding: 5px 8px; border: 1px solid rgba(127,127,127,.4); border-radius: 6px; background: transparent; color: inherit; font: inherit; }
+    input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+    button { padding: 5px 10px; border: 1px solid rgba(127,127,127,.4); border-radius: 6px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+    button.primary { width: 100%; margin-top: 12px; padding: 7px 10px; border: 0; border-radius: 8px; background: var(--gradient); color: #fff; font-weight: 600; }
+    button.primary:hover { filter: brightness(1.08); }
+    .hint { color: var(--muted); font-size: 12px; margin-top: 10px; }
+    .ai { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(127,127,127,.25); font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1><img src="icons/icon-32.png" alt=""><span data-i18n="extName"></span></h1>
+  <div class="status"><span id="dot" class="dot"></span><span id="state" data-i18n="checking"></span></div>
+  <div id="err" class="err"></div>
+
+  <label for="port" data-i18n="portLabel"></label>
+  <div class="row">
+    <input id="port" type="number" min="1" max="65535">
+    <button id="save" data-i18n="save"></button>
+    <button id="reconnect" data-i18n="reconnect"></button>
+  </div>
+
+  <button id="share" class="primary" data-i18n="shareTab"></button>
+  <div class="hint" data-i18n="groupHint"></div>
+  <div class="ai"><span id="aiMode" data-i18n="findModeLoading"></span><button id="aiSettings" data-i18n="settings"></button></div>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

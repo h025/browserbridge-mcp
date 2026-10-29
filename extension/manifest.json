@@ -1,0 +1,66 @@
+{
+  "manifest_version": 3,
+  "name": "__MSG_extName__",
+  "version": "0.7.0",
+  "description": "__MSG_extDescription__",
+  "default_locale": "en",
+  "homepage_url": "https://github.com/h025/browserbridge-mcp",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAt9Y+BFGUFT26zo60jPm8DhPATuKOzDdI96WuOViPyqLyukkev79vccI3M4Wv4bjvGX71J9ptD/PlrdxLRZ5S7KqsSwuKI1U+gSeWjJrW3yRCrh2212KO+OJaOLhXbut5su4uPb4RTxTiYkpZaKhffriSqwnJ8Cxo4sQccUPdZsPE3iB3GE2ElWFimMdhFsOR1GoMuFDSjCUTYygfpmDTtPTApWcq/p+xPVh0F20ioXxFpzp9upS097GAYvJxw8QqjlTdHL0PxXkWBOD9YOiEgGEel7MqrqsP8FlypX1vNTIXKWIgsu3JdlBxMyfeNJynb2LRx9W4F2tZMXf2FO2K8wIDAQAB",
+  "minimum_chrome_version": "116",
+  "permissions": [
+    "tabs",
+    "tabGroups",
+    "debugger",
+    "scripting",
+    "storage",
+    "alarms",
+    "offscreen"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "src/page-agent.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": false
+    },
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "src/indicator.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "action": {
+    "default_title": "Browser Bridge",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    }
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}

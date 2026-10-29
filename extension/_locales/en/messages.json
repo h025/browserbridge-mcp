@@ -1,0 +1,240 @@
+{
+  "extName": {
+    "message": "Browser Bridge for Claude Code"
+  },
+  "extDescription": {
+    "message": "Lets Claude Code and other MCP clients drive this browser through a local MCP server. No account sign-in needed."
+  },
+  "stopButton": {
+    "message": "Stop"
+  },
+  "stopSent": {
+    "message": "Stop sent; the agent halts before its next step."
+  },
+  "stopFailed": {
+    "message": "The stop request did not get through. Interrupt the agent in your client instead (Esc in Claude Code)."
+  },
+  "gifClick": {
+    "message": "Clicked"
+  },
+  "gifType": {
+    "message": "Typed: \"$TEXT$\"",
+    "placeholders": {
+      "text": {
+        "content": "$1"
+      }
+    }
+  },
+  "gifKey": {
+    "message": "Pressed key: $KEYS$",
+    "placeholders": {
+      "keys": {
+        "content": "$1"
+      }
+    }
+  },
+  "gifScroll": {
+    "message": "Scrolled"
+  },
+  "gifDrag": {
+    "message": "Dragged"
+  },
+  "gifZoom": {
+    "message": "Zoomed in"
+  },
+  "gifNavigate": {
+    "message": "Navigated to $URL$",
+    "placeholders": {
+      "url": {
+        "content": "$1"
+      }
+    }
+  },
+  "connectFailed": {
+    "message": "Cannot reach $URL$ (is the MCP server running?)",
+    "placeholders": {
+      "url": {
+        "content": "$1"
+      }
+    }
+  },
+  "checking": {
+    "message": "Checking…"
+  },
+  "stateConnected": {
+    "message": "Connected to the MCP server"
+  },
+  "stateConnecting": {
+    "message": "Connecting…"
+  },
+  "stateDisconnected": {
+    "message": "Not connected"
+  },
+  "stateWithPort": {
+    "message": "$STATE$ (port $PORT$)",
+    "placeholders": {
+      "state": {
+        "content": "$1"
+      },
+      "port": {
+        "content": "$2"
+      }
+    }
+  },
+  "waitingServer": {
+    "message": "Waiting for the MCP server. It starts together with your MCP client, such as Claude Code."
+  },
+  "portLabel": {
+    "message": "MCP server port"
+  },
+  "save": {
+    "message": "Save"
+  },
+  "reconnect": {
+    "message": "Reconnect"
+  },
+  "shareTab": {
+    "message": "Hand over this tab"
+  },
+  "shareDone": {
+    "message": "Handed over (tabId $ID$)",
+    "placeholders": {
+      "id": {
+        "content": "$1"
+      }
+    }
+  },
+  "shareFailed": {
+    "message": "Failed: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1"
+      }
+    }
+  },
+  "groupHint": {
+    "message": "Only tabs in the “Browser Bridge” tab group can be controlled. You can also drag a tab into that group."
+  },
+  "findModeLoading": {
+    "message": "Element search: …"
+  },
+  "findModeAi": {
+    "message": "Element search: AI ($MODEL$)",
+    "placeholders": {
+      "model": {
+        "content": "$1"
+      }
+    }
+  },
+  "findModeKeyword": {
+    "message": "Element search: keywords"
+  },
+  "settings": {
+    "message": "Settings"
+  },
+  "optionsTitle": {
+    "message": "Browser Bridge Settings"
+  },
+  "aiSection": {
+    "message": "AI element search"
+  },
+  "aiLead": {
+    "message": "Used by find. With an OpenAI-compatible endpoint filled in, a model reads natural-language queries such as “the button that places the order”; leave it empty to use local keyword matching."
+  },
+  "aiBaseUrl": {
+    "message": "Endpoint"
+  },
+  "aiBaseUrlHelp": {
+    "message": "An OpenAI-compatible API, e.g. https://api.openai.com/v1. A bare host gets /v1 added; a full …/chat/completions URL works too."
+  },
+  "aiApiKey": {
+    "message": "API key"
+  },
+  "aiApiKeyHelp": {
+    "message": "Stored only in this browser. Leave it empty for local models such as Ollama."
+  },
+  "aiModel": {
+    "message": "Model"
+  },
+  "aiModelHelp": {
+    "message": "A model name the endpoint accepts, e.g. gpt-4o-mini"
+  },
+  "show": {
+    "message": "Show"
+  },
+  "hide": {
+    "message": "Hide"
+  },
+  "testConnection": {
+    "message": "Test connection"
+  },
+  "clearConfig": {
+    "message": "Clear"
+  },
+  "aiPrivacy": {
+    "message": "When enabled, find sends the structure of the current page (password, verification-code and card fields are masked) to the endpoint above."
+  },
+  "modeAi": {
+    "message": "Now: find uses AI matching (model $MODEL$)",
+    "placeholders": {
+      "model": {
+        "content": "$1"
+      }
+    }
+  },
+  "modeKeyword": {
+    "message": "Now: find uses local keyword matching"
+  },
+  "errNoBaseUrl": {
+    "message": "Enter the endpoint."
+  },
+  "errScheme": {
+    "message": "The endpoint must start with http:// or https://."
+  },
+  "errNoModel": {
+    "message": "Enter the model name."
+  },
+  "errNeedConfig": {
+    "message": "Fill in the endpoint and model first."
+  },
+  "cleared": {
+    "message": "Cleared; find will use local keyword matching."
+  },
+  "saved": {
+    "message": "Saved. find will use AI matching; press “Test connection” to make sure it works."
+  },
+  "testOk": {
+    "message": "Connected. The model replied: $REPLY$",
+    "placeholders": {
+      "reply": {
+        "content": "$1"
+      }
+    }
+  },
+  "testEmpty": {
+    "message": "(empty)"
+  },
+  "testFailed": {
+    "message": "Connection failed: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1"
+      }
+    }
+  },
+  "inputSection": {
+    "message": "Input"
+  },
+  "humanTyping": {
+    "message": "Type like a person"
+  },
+  "humanTypingHelp": {
+    "message": "Types one character at a time with a random pause of a few dozen milliseconds (long text speeds up so each entry finishes within about 12 seconds). Some sites treat instant input as a bot and show a CAPTCHA; turn this off for faster typing."
+  },
+  "humanTypingOn": {
+    "message": "On: typing follows a human rhythm."
+  },
+  "humanTypingOff": {
+    "message": "Off: text is entered all at once."
+  }
+}
